@@ -1,0 +1,84 @@
+Cyber.newVersionDetected=🛠️ Używasz wersji %1, najnowsza wersja to %2.
+Cyber.errorFormat=⚠️ Błędny format modułu!
+Cyber.nameExist=📦 Nazwa modułu jest podobna do innego modułu!
+Cyber.notFoundLanguage=🌐 Moduł %1 nie obsługuje Twojego języka
+Cyber.notFoundPackage=📦 Nie można znaleźć pakietu %1 dla modułu %2, instalowanie...
+Cyber.cantInstallPackage=❌ Nie można zainstalować pakietu %1 dla modułu %2, błąd: %3
+Cyber.loadedPackage=✅ Zainstalowano cały pakiet dla modułu %1
+Cyber.loadedConfig=⚙️ Zainstalowano konfigurację pomyślnie dla modułu %1
+Cyber.cantLoadConfig=❌ Nie można zainstalować konfiguracji modułu %1, błąd: %2
+Cyber.cantOnload=❌ Nie można uruchomić konfiguracji modułu %1, błąd: %1
+Cyber.successLoadModule=✅ Pomyślnie zainstalowano moduł %1
+Cyber.failLoadModule=❌ Nie można zainstalować modułu %1, błąd: %2
+Cyber.finishLoadModule=📦 Zainstalowano %1 komend modułów i %2 zdarzeń modułów pomyślnie
+Cyber.foundPathAppstate=📁 Znaleziono plik appstate Ullashstate
+Cyber.notFoundPathAppstate=❌ Błąd! Nie można znaleźć pliku appstate, być może plik jest uszkodzony!
+Cyber.checkListGban=🔍 Sprawdzanie globalnej listy banów...
+Cyber.banDevice=⛔ Twoje urządzenie zostało zbanowane z Vela. Skontaktuj się z właścicielem: Bura Kura (m.me/100086680386976) aby uzyskać więcej informacji lub klucz do odbanowania.
+Cyber.keyNotSameFormat=❗ Nieprawidłowy format — kod musi zawierać 6 cyfr.
+Cyber.codeInputExpired=⚠️ Twój kod jest błędny lub wygasł.
+Cyber.unbanDeviceSuccess=✅ Twoje urządzenie zostało odbanowane. Uruchom ponownie, aby kontynuować.
+Cyber.userBanned=🚫 Zostałeś zbanowany z Vela dnia %1 za: %2. Skontaktuj się z właścicielem: m.me/100086680386976 po więcej informacji!
+Cyber.finishCheckListGban=✅ Zakończono sprawdzanie globalnej listy banów
+Cyber.handleListenError=❌ Wystąpił błąd w handleListen: %1
+Cyber.warningSourceCode=⚠️ WYKRYTO ZMIANĘ KODU ŹRÓDŁOWEGO, ZATRZYMUJĘ!
+Cyber.refreshListen=🔁 Odświeżono nasłuch...
+Cyber.successConnectDatabase=✅ Połączono z bazą danych pomyślnie!
+Cyber.failConnectDatabase=❌ Nie udało się połączyć z bazą danych, błąd: %1
+
+listen.startLoadEnvironment=📡 Ładowanie zmiennych środowiskowych...
+listen.loadedEnvironmentThread=✅ Załadowano zmienne środowiskowe dla wątku
+listen.loadedEnvironmentUser=✅ Załadowano zmienne środowiskowe dla użytkownika
+listen.successLoadEnvironment=✅ Zmienna środowiskowa załadowana pomyślnie
+listen.failLoadEnvironment=❌ Nie można załadować zmiennej środowiskowej, błąd: %1
+
+currencies.needObjectOrArray=⚠️ Musi być to tablica lub obiekt, lub oba
+currencies.needObject=⚠️ Musi być to obiekt
+currencies.needNumber=⚠️ Musi być to liczba
+
+threads.needObjectOrArray=⚠️ Musi być to tablica lub obiekt, lub oba
+threads.needObject=⚠️ Musi być to obiekt
+
+users.needObjectOrArray=⚠️ Musi być to tablica lub obiekt, lub oba
+users.needObject=⚠️ Musi być to obiekt
+
+handleCommand.userBanned=🚫 Zostałeś zbanowany za niewłaściwe zachowanie.
+handleCommand.threadBanned=🚫 Grupa została zbanowana. Skontaktuj się z właścicielem Bura Kura.
+handleCommand.commandNotExist=❔ Komenda nie istnieje. Może chodziło Ci o: %1
+handleCommand.commandThreadBanned=🚫 Twoja grupa nie może używać komendy "%1"
+handleCommand.commandUserBanned=🚫 Nie możesz używać komendy "%1"
+handleCommand.threadNotAllowNSFW=🔒 Ta komenda jest dostępna tylko dla administratora.
+handleCommand.cantGetInfoThread=❌ Nie można pobrać informacji o wątku, błąd: %1
+handleCommand.permssionNotEnough=🚷 Nie masz uprawnień do użycia "%1"
+handleCommand.cantSetMessageReaction=⚠️ Nie można ustawić reakcji, błąd: %1
+handleCommand.executeCommand=📝 Komenda [%1] użyta: %2 przez %3 w %4 | Argumenty: %5 | Czas: %6ms
+handleCommand.commandError=❌ Wystąpił błąd w komendzie %1, błąd: %2
+
+handleCommandEvent.moduleError=❌ Wystąpił błąd w komendzie %1, błąd: %2
+
+handleCreateDatabase.newThread=📌 Nowy wątek: %1
+handleCreateDatabase.newUser=👤 Nowy użytkownik: %1
+
+handleEvent.executeEvent=📥 Wykonano zdarzenie [%1]: %2 w %3 | Czas: %4ms
+handleEvent.eventError=❌ Błąd w zdarzeniu %1, błąd: %2
+
+handleReaction.missingValue=⚠️ Brakuje danych do reakcji
+handleReaction.executeError=❌ Błąd przy reakcji, błąd: %1
+
+handleReply.missingValue=⚠️ Brakuje danych do odpowiedzi
+handleReply.executeError=❌ Błąd przy odpowiedzi, błąd: %1
+
+handleSchedule.exectuteError=❌ Błąd w harmonogramie (%1), błąd: %2
+
+utils.throwError=ℹ️ Jeśli ta komenda nie działa, wpisz %1help %2 po więcej informacji 💬
+
+updater.latestVersion=✅ Używasz najnowszej wersji
+updater.cantFindVersion=⚠️ Używasz niezdefiniowanej wersji (%1), sprawdź package.json
+updater.newVersions=🆕 Znaleziono %1 nowych wersji, rozpoczynam aktualizację...
+updater.updateSuccess=✅ Zaktualizowano: %1
+updater.configChanged=⚙️ Zmieniono plik %1, sprawdź config.json
+updater.installingPackages=📦 Instalowanie zależności...
+updater.installSuccess=✅ Zainstalowano zależności, uruchom ponownie bota
+updater.backupSuccess=📁 Kopia zapasowa zapisanych plików w folderze %1
+updater.restartToApply=🔄 Uruchom ponownie bota, aby zastosować zmiany
+updater.skipFile=⚠️ Pominąłeś aktualizację pliku %1 (powód: %2)
