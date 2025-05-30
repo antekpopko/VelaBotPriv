@@ -10,7 +10,7 @@ module.exports.config = {
 };
 
 module.exports.handleEvent = function ({ api, event }) {
-  const adminID = "100000478146113"; // UID admina
+  const adminID = "61563352322805"; // UID admina
   const mentionedIDs = Object.keys(event.mentions || {});
 
   if (event.senderID === adminID) return;
@@ -23,11 +23,8 @@ module.exports.handleEvent = function ({ api, event }) {
       "Szef ma ważniejsze sprawy niż Twoje tagi.",
       "Szanuj admina – nie taguj bez powodu.",
       "Czemu znowu oznaczasz admina? Daj mu spokój!",
-      "Zamiast oznaczać admina, napisz do mnie.",
-      "Twój tag został zauważony. Ale czy potrzebny?",
       "Admin śpi. Nie przeszkadzaj!",
-      "Oznaczyłeś admina. Czy to było konieczne?",
-      "Nie taguj admina. Taguj pizzę, przynajmniej przyjedzie."
+      "Oznaczyłeś admina. Czy to było konieczne?"
     ];
 
     const randomReply = responses[Math.floor(Math.random() * responses.length)];
