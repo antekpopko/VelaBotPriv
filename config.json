@@ -1,5 +1,5 @@
 {
-    "language": "en",
+    "language": "pl",
     "keyActive": "",
     "DeveloperMode": false,
     "autoCreateDB": true,
@@ -16,12 +16,10 @@
     "EMAIL": "",
     "PASSWORD": "",
     "OTPKEY": "",
-    "BOTNAME": "𝐂𝐘𝐁𝐄𝐑 ☢️_𖣘 -𝐁𝐎𝐓 ⚠️",
+    "BOTNAME": "vela",
     "PREFIX": "/",
     "ADMINBOT": [
-        "100000478146113",
-        "61576520552554",
-        "61550035211214"
+        "100000478146113"
     ],
     "NDH": [
         "100000478146113"
