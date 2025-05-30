@@ -1,21 +1,29 @@
 module.exports.config = {
   name: "antibd",
   eventType: ["log:user-nickname"],
-  version: "0.0.1",
-  credits: "Islamick chat bot",
-  description: "Przeciwko zmianie nicku Bota"
+  version: "1.0.1",
+  credits: "January (PL wersja Islamick Chat Bot)",
+  description: "Całkowicie blokuje zmianę nicku bota"
 };
 
-module.exports.run = async function({ api, event, Users, Threads }) {
-    var { logMessageData, threadID, author } = event;
-    var botID = api.getCurrentUserID();
-    var { BOTNAME, ADMINBOT } = global.config;
-    var { nickname } = await Threads.getData(threadID, botID);
-    var nickname = nickname ? nickname : BOTNAME;
+module.exports.run = async function ({ api, event, Users }) {
+  const { logMessageData, threadID, author } = event;
+  const botID = api.getCurrentUserID();
+  const { BOTNAME, PREFIX } = global.config;
+
+  if (logMessageData.participant_id == botID && author != botID) {
+    const defaultNickname = `[ ${PREFIX} ] • ${BOTNAME || "BOT"}`;
     
-    if (logMessageData.participant_id == botID && author != botID && !ADMINBOT.includes(author) && logMessageData.nickname != nickname) {
-        api.changeNickname(nickname, threadID, botID);
-        var info = await Users.getData(author);
-        return api.sendMessage({ body: `${info.name} - Nie zmienisz mojego nicku! 😼\nTylko mój szef Ułłas ma do tego prawo! ✋`}, threadID);
-    }
-}
+    // Przywróć oryginalny nick
+    api.changeNickname(defaultNickname, threadID, botID);
+
+    // Pobierz nazwę użytkownika
+    const info = await Users.getData(author);
+    const name = info?.name || "Ktoś";
+
+    return api.sendMessage(
+      `${name}, nie próbuj zmieniać mojego nicku! 😼\nTylko ja decyduję, jak się nazywam.`,
+      threadID
+    );
+  }
+};
