@@ -1,59 +1,72 @@
 module.exports.config = {
   name: "zdj",
-  version: "1.0.0",
+  version: "1.2.0",
   hasPermssion: 0,
-  credits: "Shaon Ahmed",
-  description: "Wyszukiwanie obrazów",
+  credits: "January (na bazie Shaon Ahmed)",
+  description: "Wyszukiwanie obrazów przez Google Images (obsługuje polskie frazy)",
   commandCategory: "Wyszukiwanie",
-  usages: "[tekst]-[ilość]",
-  cooldowns: 0,
+  usages: "[fraza]-[ilość]",
+  cooldowns: 2,
 };
 
-const axios = require("axios");
 const fs = require("fs-extra");
+const axios = require("axios");
+const google = require("googlethis");
 
 module.exports.run = async function({ api, event, args }) {
-  const keySearch = args.join(" ");
-  if (!keySearch.includes("-")) {
-    return api.sendMessage(
-      'Podaj frazę i ilość w formacie: zdj keyword-5\nPrzykład: zdj kot-3\n(Wyświetli 3 zdjęcia kota)',
-      event.threadID,
-      event.messageID
-    );
-  }
-
-  const keySearchs = keySearch.substr(0, keySearch.indexOf("-")).trim();
-  const numberSearch = parseInt(keySearch.split("-").pop()) || 6;
-
   try {
-    const apis = await axios.get('https://raw.githubusercontent.com/shaonproject/Shaon/main/api.json');
-    const Shaon = apis.data.api;
-    const res = await axios.get(`${Shaon}/pinterest?search=${encodeURIComponent(keySearchs)}`);
+    api.setMessageReaction("🔍", event.messageID, () => {}, true);
 
-    const data = res.data.data;
-    if (!data || data.length === 0) {
-      return api.sendMessage("Nie znaleziono żadnych obrazów dla podanego hasła.", event.threadID, event.messageID);
+    const input = args.join(" ");
+    if (!input.includes("-")) {
+      return api.sendMessage(
+        '❌ Użycie: zdj [fraza]-[ilość]\n▶️ Przykład: zdj zamek-3',
+        event.threadID,
+        event.messageID
+      );
     }
 
-    let imgData = [];
-    for (let i = 0; i < Math.min(numberSearch, data.length); i++) {
-      const path = __dirname + `/cache/${i + 1}.jpg`;
-      const imgBuffer = (await axios.get(data[i], { responseType: "arraybuffer" })).data;
-      await fs.writeFile(path, Buffer.from(imgBuffer));
-      imgData.push(fs.createReadStream(path));
+    const searchTerm = input.slice(0, input.indexOf("-")).trim();
+    const amount = parseInt(input.split("-").pop()) || 3;
+
+    const options = {
+      safe: false,
+      additional_params: {
+        hl: "pl",   // język interfejsu
+        gl: "pl"    // kraj: Polska
+      },
+      host: "google.pl"
+    };
+
+    const response = await google.image(searchTerm, options);
+    const images = response.slice(0, Math.min(amount, 10));
+
+    if (images.length === 0)
+      return api.sendMessage("❌ Nie znaleziono żadnych zdjęć.", event.threadID, event.messageID);
+
+    const attachments = [];
+
+    for (let i = 0; i < images.length; i++) {
+      const url = images[i].url;
+      const path = __dirname + `/cache/google${i}.jpg`;
+      const buffer = (await axios.get(url, { responseType: "arraybuffer" })).data;
+      fs.writeFileSync(path, buffer);
+      attachments.push(fs.createReadStream(path));
     }
 
     await api.sendMessage({
-      body: `Znalazłem ${imgData.length} wyników dla: "${keySearchs}"`,
-      attachment: imgData,
+      body: `✅ Znalazłem ${attachments.length} wyników dla: "${searchTerm}"`,
+      attachment: attachments,
     }, event.threadID, event.messageID);
 
-    // Usuń pobrane pliki
-    for (let i = 0; i < imgData.length; i++) {
-      await fs.unlink(__dirname + `/cache/${i + 1}.jpg`);
+    for (let i = 0; i < attachments.length; i++) {
+      fs.unlinkSync(__dirname + `/cache/google${i}.jpg`);
     }
-  } catch (error) {
-    console.error(error);
-    return api.sendMessage("Wystąpił błąd podczas wyszukiwania obrazów.", event.threadID, event.messageID);
+
+    api.setMessageReaction("✅", event.messageID, () => {}, true);
+  } catch (err) {
+    console.error(err);
+    api.setMessageReaction("❌", event.messageID, () => {}, true);
+    api.sendMessage("❌ Wystąpił błąd przy wyszukiwaniu obrazów.", event.threadID, event.messageID);
   }
 };
