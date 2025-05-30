@@ -1,67 +1,50 @@
 module.exports.config = {
   name: "gt",
   version: "1.0",
-  hasPermssion: 2,
-  credits: "January Sakiewka + ChatGPT",
-  description: "Dodaje losowych członków z innej grupy do tej grupy.",
+  hasPermssion: 1,
+  credits: "ChatGPT + January Sakiewka",
+  description: "Losowo dodaje 1 użytkownika z innej grupy do Twojej grupy",
   commandCategory: "admin",
-  usages: "[sourceThreadID] [ilość]",
-  cooldowns: 5,
-};
-
-const getRandom = (arr, n) => {
-  const result = [];
-  const used = new Set();
-  while (result.length < n && used.size < arr.length) {
-    const idx = Math.floor(Math.random() * arr.length);
-    if (!used.has(idx)) {
-      result.push(arr[idx]);
-      used.add(idx);
-    }
-  }
-  return result;
+  usages: "[sourceThreadID]",
+  cooldowns: 10
 };
 
 module.exports.run = async function({ api, event, args }) {
-  const { threadID, messageID } = event;
-  const [sourceID, limit] = args;
-
-  if (!sourceID || isNaN(limit)) {
-    return api.sendMessage("❗ Użycie: /grouptransfer [sourceThreadID] [ilość osób]", threadID, messageID);
+  const { threadID: targetThreadID, messageID } = event;
+  if (!args[0]) {
+    return api.sendMessage("❗ Podaj ID grupy, z której chcesz przenieść użytkownika. Przykład:\n/transferuser 1234567890123456", targetThreadID, messageID);
   }
 
+  const sourceThreadID = args[0];
   try {
-    const sourceInfo = await api.getThreadInfo(sourceID);
-    const targetInfo = await api.getThreadInfo(threadID);
-
-    const sourceMembers = Object.keys(sourceInfo.participantIDs);
-    const targetMembers = new Set(targetInfo.participantIDs);
-
-    const toAdd = getRandom(sourceMembers.filter(uid => !targetMembers.has(uid)), parseInt(limit));
-
-    if (toAdd.length === 0) {
-      return api.sendMessage("ℹ️ Brak użytkowników do dodania (wszyscy są już w tej grupie).", threadID, messageID);
+    // Pobierz listę członków z grupy źródłowej
+    const data = await api.getThreadInfo(sourceThreadID);
+    if (!data || !data.participantIDs || data.participantIDs.length === 0) {
+      return api.sendMessage("❌ Nie udało się pobrać użytkowników z podanej grupy lub grupa jest pusta.", targetThreadID, messageID);
     }
 
-    let added = 0, failed = 0;
-
-    for (const userID of toAdd) {
-      try {
-        await api.addUserToGroup(userID, threadID);
-        added++;
-      } catch (e) {
-        failed++;
-      }
+    // Losowo wybierz 1 użytkownika spośród uczestników, który nie jest botem (czyli nie jest Twoim ID)
+    const botID = api.getCurrentUserID(); // ID konta bota
+    const candidates = data.participantIDs.filter(id => id !== botID);
+    if (candidates.length === 0) {
+      return api.sendMessage("❌ Brak użytkowników do dodania (poza botem).", targetThreadID, messageID);
     }
 
-    return api.sendMessage(
-      `✅ Dodano ${added} użytkowników.\n❌ Nie udało się dodać ${failed}.`,
-      threadID,
-      messageID
-    );
+    const randomIndex = Math.floor(Math.random() * candidates.length);
+    const userToAdd = candidates[randomIndex];
 
-  } catch (err) {
-    console.error(err);
-    return api.sendMessage("❌ Wystąpił błąd podczas pobierania danych grupy lub dodawania członków.", threadID, messageID);
+    // Spróbuj dodać użytkownika do Twojej grupy
+    try {
+      await api.addUserToGroup(userToAdd, targetThreadID);
+      api.sendMessage(`✅ Użytkownik ${userToAdd} został pomyślnie dodany do tej grupy!`, targetThreadID, messageID);
+      console.log(`✅ Dodano użytkownika ${userToAdd} z grupy ${sourceThreadID} do grupy ${targetThreadID}`);
+    } catch (err) {
+      api.sendMessage(`❌ Nie udało się dodać użytkownika ${userToAdd}: ${err.message}`, targetThreadID, messageID);
+      console.log(`❌ Błąd przy dodawaniu użytkownika ${userToAdd}:`, err);
+    }
+
+  } catch (error) {
+    console.log("❌ Błąd przy pobieraniu uczestników grupy:", error);
+    return api.sendMessage("❌ Wystąpił błąd podczas pobierania uczestników grupy źródłowej.", targetThreadID, messageID);
   }
 };
