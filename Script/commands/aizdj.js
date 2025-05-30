@@ -14,7 +14,7 @@ module.exports.run = async ({ api, event, args }) => {
   const fs = require("fs-extra");
   const { threadID, messageID } = event;
   const query = args.join(" ");
-  if (!query) return api.sendMessage("Podaj tekst lub zapytanie do wygenerowania obrazu.", threadID, messageID);
+  if (!query) return api.sendMessage("Podaj tekst lub do wygenerowania obrazu.", threadID, messageID);
 
   const path = __dirname + "/cache/poli.png";
 
