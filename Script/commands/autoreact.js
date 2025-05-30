@@ -1,21 +1,24 @@
 module.exports.config = {
   name: "autoreact",
   version: "1.1.1",
-  hasPermission: 2,
+  hasPermission: 0,
   credits: "𝐂𝐘𝐁𝐄𝐑 ☢️_𖣘 -𝐁𝐎𝐓 ⚠️ 𝑻𝑬𝑨𝑴_ ☢️",
-  description: "Bot React",
+  description: "Bot automatycznie reaguje na brzydkie słowa",
   commandCategory: "No Prefix",
   usages: '[]',
   cooldowns: 0,
 };
 
 module.exports.handleEvent = function({ api, event }) {
-  const { threadID, messageID, body } = event;
+  const { messageID, body } = event;
   const react = body?.toLowerCase() || "";
 
-  if (react.includes("zboczeniec")) {
-    api.setMessageReaction("🤮", messageID, (err) => {}, true);
+  const triggerWords = ["zboczeniec", "brudas", "zbok"];
+  const shouldReact = triggerWords.some(word => react.includes(word));
+
+  if (shouldReact) {
+    api.setMessageReaction("🤮", messageID, () => {}, true);
   }
 };
 
-module.exports.run = function({ api, event }) {};
+module.exports.run = function({}) {};
