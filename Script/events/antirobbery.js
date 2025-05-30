@@ -1,36 +1,27 @@
 module.exports.config = {
     name: "antirobbery",
     eventType: ["log:thread-admins"],
-    version: "1.0.1",
-    credits: "CYBER BOT TEAM",
-    description: "Blokowanie zmian adminów - zawsze włączone",
+    version: "1.0.2",
+    credits: "CYBER BOT TEAM (edycja: ChatGPT)",
+    description: "Zabiera admina osobie, która odebrała admina komuś innemu",
 };
 
 module.exports.run = async function ({ event, api }) {
     const { logMessageType, logMessageData } = event;
 
-    if (logMessageType === "log:thread-admins") {
-        if (logMessageData.ADMIN_EVENT === "add_admin") {
-            if (event.author === api.getCurrentUserID()) return;
-            if (logMessageData.TARGET_ID === api.getCurrentUserID()) return;
+    if (logMessageType !== "log:thread-admins") return;
+    if (event.author === api.getCurrentUserID()) return;
+    if (logMessageData.TARGET_ID === api.getCurrentUserID()) return;
 
-            api.changeAdminStatus(event.threadID, event.author, false);
-            api.changeAdminStatus(event.threadID, logMessageData.TARGET_ID, false, (err) => {
-                if (err) return api.sendMessage("Coś poszło nie tak 😝", event.threadID, event.messageID);
-                api.sendMessage("» Aktywowano tryb antykradzieżowy 🖤", event.threadID, event.messageID);
-            });
-        } else if (logMessageData.ADMIN_EVENT === "remove_admin") {
-            if (event.author === api.getCurrentUserID()) return;
-            if (logMessageData.TARGET_ID === api.getCurrentUserID()) return;
+    // Reagujemy tylko na odebranie admina
+    if (logMessageData.ADMIN_EVENT === "remove_admin") {
+        // Przywracamy admina osobie, której został odebrany
+        api.changeAdminStatus(event.threadID, logMessageData.TARGET_ID, true);
 
-            // Przywracamy admina osobie, której odebrano admina
-            api.changeAdminStatus(event.threadID, logMessageData.TARGET_ID, true);
-
-            // Odbieramy admina osobie, która próbowała odebrać admina
-            api.changeAdminStatus(event.threadID, event.author, false, (err) => {
-                if (err) return api.sendMessage("Coś poszło nie tak 😝", event.threadID, event.messageID);
-                api.sendMessage("» Aktywowano tryb antykradzieżowy 🖤", event.threadID, event.messageID);
-            });
-        }
+        // Zabieramy admina osobie, która to zrobiła
+        api.changeAdminStatus(event.threadID, event.author, false, (err) => {
+            if (err) return api.sendMessage("Coś poszło nie tak 😝", event.threadID, event.messageID);
+            api.sendMessage("Nie odbieraj admina innym! 😉", event.threadID, event.messageID);
+        });
     }
 };
