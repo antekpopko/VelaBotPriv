@@ -17,26 +17,25 @@ module.exports.onLoad = function () {
 module.exports.run = async function ({ api, event }) {
   const { threadID, logMessageData } = event;
 
-  // Jeśli bot został dodany do grupy
+  // Jeśli bot został dodany do grupy 🤖
   if (logMessageData.addedParticipants.some(i => i.userFbId == api.getCurrentUserID())) {
     const botNick = `[ ${global.config.PREFIX} ] • ${global.config.BOTNAME || "BOT"}`;
     api.changeNickname(botNick, threadID, api.getCurrentUserID());
 
     return api.sendMessage({
-      body: `Dziękuję za dodanie mnie do grupy!\n\nWpisz ${global.config.PREFIX}help, aby zobaczyć dostępne komendy.`,
+      body: `🤖 Dziękuję za dodanie mnie do grupy!\n\n📜 Wpisz ${global.config.PREFIX}help, aby zobaczyć dostępne komendy.`,
       attachment: fs.createReadStream(path.join(__dirname, "cache", "ullash.mp4"))
     }, threadID);
   }
 
-  // Nowy użytkownik został dodany
+  // Nowy użytkownik został dodany 👋
   try {
     const threadInfo = await api.getThreadInfo(threadID);
     const threadName = threadInfo.threadName;
-    const participantCount = threadInfo.participantIDs.length;
     const names = logMessageData.addedParticipants.map(p => p.fullName);
     const mentions = logMessageData.addedParticipants.map(p => ({ tag: p.fullName, id: p.userFbId }));
 
-    let msg = `Witamy ${names.join(", ")}!\n\nMiło Cię widzieć w grupie "${threadName}"!\nJesteś członkiem numer ${participantCount}.\n\nCzuj się jak u siebie i baw się dobrze!`;
+    let msg = `👋 Witamy ${names.join(", ")}!\n\n🎉 Miło Cię widzieć w grupie *${threadName}*! 💬`;
 
     const gifDir = path.join(__dirname, "cache", "joinGif", "randomgif");
     const gifFiles = fs.readdirSync(gifDir).filter(file => file.endsWith(".mp4") || file.endsWith(".gif"));
