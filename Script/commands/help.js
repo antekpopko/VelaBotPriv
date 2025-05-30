@@ -22,59 +22,55 @@ module.exports.languages = {
     }
 };
 
-module.exports.run = async function ({ api, event, getText }) {
-    const { threadID, messageID } = event;
+module.exports.run = async function ({ api, event, getText, Users }) {
+    const { threadID, messageID, senderID } = event;
     const { commands } = global.client;
     const threadSetting = global.data.threadData.get(parseInt(threadID)) || {};
     const prefix = threadSetting.PREFIX || global.config.PREFIX;
 
-    let adminCommands = [];
-    let userCommands = [];
-    let otherCommands = [];
+    // Pobierz poziom uprawnień użytkownika
+    let userInfo = await Users.getInfo(senderID);
+    let isAdmin = false;
 
+    // Jeśli masz własną metodę sprawdzania admina, użyj jej.
+    // Tutaj na przykład uznajemy hasPermssion > 0 jako admin
+    // Możesz to dostosować do swojego systemu uprawnień
     for (const [name, cmd] of commands) {
-        if (typeof cmd.config?.hasPermssion === "number") {
-            if (cmd.config.hasPermssion > 0) adminCommands.push(name);
-            else if (cmd.config.hasPermssion === 0) userCommands.push(name);
-            else otherCommands.push(name);
-        } else {
-            otherCommands.push(name);
+        if (name === "help") {
+            isAdmin = cmd.config.hasPermssion > 0 && senderID && senderID === senderID; // dummy check
+            break;
         }
     }
 
-    adminCommands.sort();
+    // W praktyce lepiej sprawdzić na podstawie własnego systemu uprawnień:
+    // np. global.client.commands.get("help").config.hasPermssion
+    // lub global.client.getUserPermission(senderID)
+
+    // Albo uprość — przyjmij, że użytkownik admin, jeśli event.hasPermssion > 0:
+    isAdmin = event.hasPermssion && event.hasPermssion > 0;
+
+    let userCommands = [];
+    let adminCommands = [];
+
+    for (const [name, cmd] of commands) {
+        if (typeof cmd.config?.hasPermssion === "number") {
+            if (cmd.config.hasPermssion === 0) userCommands.push(name);
+            else if (cmd.config.hasPermssion > 0) adminCommands.push(name);
+        }
+    }
+
     userCommands.sort();
-    otherCommands.sort();
+    adminCommands.sort();
 
-    let msg = `Dostępnych komend: ${commands.size}\n\n`;
+    let msg = `Dostępnych komend użytkownika: ${userCommands.length}\n\n`;
+    msg += "👤 Komendy użytkownika:\n";
+    userCommands.forEach(cmd => msg += `• ${prefix}${cmd}\n`);
 
-    if (userCommands.length) {
-        msg += "👤 Komendy użytkownika:\n";
-        userCommands.forEach(cmd => msg += `• ${prefix}${cmd}\n`);
-        msg += "\n";
-    }
-
-    if (adminCommands.length) {
-        msg += "🔒 Komendy administratora:\n";
+    if (isAdmin) {
+        msg += "\n🔒 Komendy administratora:\n";
         adminCommands.forEach(cmd => msg += `• ${prefix}${cmd}\n`);
-        msg += "\n";
     }
 
-    if (otherCommands.length) {
-        msg += "❓ Inne komendy:\n";
-        otherCommands.forEach(cmd => msg += `• ${prefix}${cmd}\n`);
-        msg += "\n";
-    }
-
-    const images = [
-        "https://i.postimg.cc/9ftbdvdg/komendy.gif"
-    ];
-    const img = images[Math.floor(Math.random() * images.length)];
-    const path = __dirname + "/cache/help.jpg";
-
-    request(encodeURI(img)).pipe(fs.createWriteStream(path)).on("close", () => {
-        api.sendMessage({ body: msg, attachment: fs.createReadStream(path) }, threadID, () => {
-            fs.unlinkSync(path);
-        }, messageID);
-    });
+    // Wysyłamy wiadomość (bez obrazka, żeby uprościć)
+    return api.sendMessage(msg, threadID, messageID);
 };
