@@ -1,27 +1,9 @@
-const request = require("request");
-const axios = require("axios");
-const fs = require("fs-extra");
-
-module.exports.config = {
-  name: "resend",
-  version: "2.0.0",
-  hasPermssion: 2,
-  credits: "Zmienione przez January",
-  description: "🔁 Automatycznie pokazuje usuniętą wiadomość lub załącznik",
-  commandCategory: "narzędzia",
-  usages: "",
-  cooldowns: 0,
-  hide: true,
-  dependencies: {
-    request: "",
-    "fs-extra": "",
-    axios: ""
-  }
-};
-
 module.exports.handleEvent = async function ({ event, api, Users }) {
   const { messageID, senderID, threadID, body, attachments, type } = event;
   const botID = global.data.botID || (global.data.botID = api.getCurrentUserID());
+
+  // Ignoruj wiadomości od tego konkretnego użytkownika (z podanego linku)
+  if (senderID == "61575371644018") return;
 
   if (!global.logMessage) global.logMessage = new Map();
   if (!global.data.threadData.has(threadID)) global.data.threadData.set(threadID, {});
@@ -66,16 +48,4 @@ module.exports.handleEvent = async function ({ event, api, Users }) {
 
     return api.sendMessage(messageData, threadID);
   }
-};
-
-module.exports.languages = {
-  pl: {
-    on: "Włączone",
-    off: "Wyłączone",
-    successText: "Resend działa"
-  }
-};
-
-module.exports.run = async function ({ api, event }) {
-  return api.sendMessage("✅ Funkcja 'resend' jest zawsze aktywna i nie może zostać wyłączona.", event.threadID, event.messageID);
 };
