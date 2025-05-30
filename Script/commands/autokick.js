@@ -7,11 +7,15 @@ module.exports.config = {
   commandCategory: "Moderacja",
   usages: "Automatyczne wyrzucanie spamerów",
   cooldowns: 0,
+  ignoredUsers: ["61575371644018"] // dodajemy ignorowanych użytkowników
 };
 
 module.exports.handleEvent = async function ({ api, event }) {
-  const maxLength = 550; // limit znaków
+  const maxLength = 1400; // limit znaków
   const { threadID, senderID, body, messageID } = event;
+
+  // Ignoruj wiadomości od użytkowników na liście ignorowanych
+  if (module.exports.config.ignoredUsers.includes(String(senderID))) return;
 
   if (!body || body.length < maxLength) return;
 
