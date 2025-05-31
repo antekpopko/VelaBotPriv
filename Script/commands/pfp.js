@@ -2,7 +2,7 @@ const axios = require("axios");
 
 module.exports = {
   config: {
-    name: "spy",
+    name: "pfp",
     version: "1.1",
     hasPermission: 0,
     usePrefix: true,
