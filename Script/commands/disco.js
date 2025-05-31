@@ -32,7 +32,7 @@ module.exports.run = async ({ api, event, args }) => {
     } catch (e) {
       console.log("Błąd zmiany koloru:", e.message);
     }
-    await new Promise(res => setTimeout(res, 1200)); // 1.2 sekundy pomiędzy
+    await new Promise(res => setTimeout(res, 600)); // 1.2 sekundy pomiędzy
   }
 
   return api.sendMessage("✅ Tęczowy pokaz zakończony!", event.threadID);
