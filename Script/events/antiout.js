@@ -21,7 +21,7 @@ module.exports.run = async ({ event, api, Threads, Users }) => {
       if (error) {
         api.sendMessage(`❌ Niestety nie mogę dodać ponownie ${name} 😞`, event.threadID);
       } else {
-        api.sendMessage(`✅ Dodano ponownie ${name} — z tej grupy nie uciekniesz 😉`, event.threadID);
+        api.sendMessage(`✅ Dodałem ponownie ${name} — z tej grupy nie uciekniesz 😉`, event.threadID);
       }
     });
   }
