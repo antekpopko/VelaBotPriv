@@ -35,7 +35,7 @@ module.exports.run = async function ({ api, event }) {
     const names = logMessageData.addedParticipants.map(p => p.fullName);
     const mentions = logMessageData.addedParticipants.map(p => ({ tag: p.fullName, id: p.userFbId }));
 
-    let msg = `👋 Witamy ${names.join(", ")}!\n\n🎉 Miło Cię widzieć w grupie *${threadName}*! 💬`;
+    let msg = `👋 Witamy ${names.join(", ")}!\n\n🎉 Miło Cię widzieć w grupie ${threadName}! 💬`;
 
     const gifDir = path.join(__dirname, "cache", "joinGif", "randomgif");
     const gifFiles = fs.readdirSync(gifDir).filter(file => file.endsWith(".mp4") || file.endsWith(".gif"));
