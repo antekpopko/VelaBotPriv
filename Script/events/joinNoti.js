@@ -1,20 +1,4 @@
-const fs = require("fs-extra");
-const path = require("path");
-
-module.exports.config = {
-  name: "joinNoti",
-  eventType: ["log:subscribe"],
-  version: "1.0.3",
-  credits: "CYBER BOT TEAM (polonizacja: January)",
-  description: "Wiadomość powitalna z losowym gifem lub wideo (PL)",
-};
-
-module.exports.onLoad = function () {
-  const gifFolder = path.join(__dirname, "cache", "joinGif", "randomgif");
-  if (!fs.existsSync(gifFolder)) fs.mkdirSync(gifFolder, { recursive: true });
-};
-
-module.exports.run = async function ({ api, event }) {
+module.exports.run = async function ({ api, event, Users }) {
   const { threadID, logMessageData } = event;
 
   // Jeśli bot został dodany do grupy 🤖
@@ -32,8 +16,15 @@ module.exports.run = async function ({ api, event }) {
   try {
     const threadInfo = await api.getThreadInfo(threadID);
     const threadName = threadInfo.threadName;
-    const names = logMessageData.addedParticipants.map(p => p.fullName);
-    const mentions = logMessageData.addedParticipants.map(p => ({ tag: p.fullName, id: p.userFbId }));
+
+    const names = await Promise.all(logMessageData.addedParticipants.map(async (p) => {
+      return p.fullName || await Users.getNameUser(p.userFbId) || "użytkowniku";
+    }));
+
+    const mentions = await Promise.all(logMessageData.addedParticipants.map(async (p, index) => {
+      const name = p.fullName || await Users.getNameUser(p.userFbId) || "użytkowniku";
+      return { tag: name, id: p.userFbId };
+    }));
 
     let msg = `👋 Witamy ${names.join(", ")}!\n\n🎉 Miło Cię widzieć w grupie ${threadName}! 💬`;
 
