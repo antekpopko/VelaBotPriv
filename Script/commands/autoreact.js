@@ -20,7 +20,7 @@ module.exports.handleEvent = function({ api, event }) {
     { keywords: ["xd", "lol", "haha"], emoji: "😂" },
     { keywords: ["smutek", "przykro", "płacz"], emoji: "😢" },
     { keywords: ["super", "dobrze", "git"], emoji: "👍" },
-    { keywords: ["idiota", "głupek", "debil"], emoji: "🙄" }
+    { keywords: ["idiota", "głupek", "debil"], emoji: "🙄" },
 { keywords: ["cwel", "pedal", "pajac"], emoji: "😝" }
   ];
 
