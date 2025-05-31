@@ -1,5 +1,6 @@
 const axios = require("axios");
 const fs = require("fs-extra");
+const path = require("path");
 
 module.exports.config = {
   name: "resend",
@@ -15,7 +16,7 @@ module.exports.config = {
     axios: "",
     "fs-extra": ""
   },
-  ignoredUsers: ["61575371644018"] // tutaj możesz dodawać ignorowanych użytkowników
+  ignoredUsers: ["61575371644018"]
 };
 
 module.exports.handleEvent = async function ({ event, api, Users }) {
@@ -23,17 +24,12 @@ module.exports.handleEvent = async function ({ event, api, Users }) {
     const { messageID, senderID, threadID, body, attachments, type } = event;
     const botID = global.data.botID || (global.data.botID = api.getCurrentUserID());
 
-    // Ignoruj od użytkowników na liście ignorowanych
     if (module.exports.config.ignoredUsers.includes(String(senderID))) return;
+    if (senderID == botID || global.config.ADMINBOT?.includes(senderID)) return;
 
     if (!global.logMessage) global.logMessage = new Map();
-    if (!global.data.threadData.has(threadID)) global.data.threadData.set(threadID, {});
-
-    // Jeśli to wiadomość bota lub administratora - zignoruj
-    if (senderID == botID || global.config.ADMINBOT.includes(senderID)) return;
 
     if (type !== "message_unsend") {
-      // Zapisz wiadomość do mapy
       global.logMessage.set(messageID, {
         msgBody: body,
         attachment: attachments
@@ -60,8 +56,8 @@ module.exports.handleEvent = async function ({ event, api, Users }) {
       let count = 0;
       for (const att of oldMsg.attachment) {
         count++;
-        const ext = att.url.split(".").pop();
-        const filePath = __dirname + `/cache/resend_${count}.${ext}`;
+        const ext = att.url.split(".").pop().split("?")[0];
+        const filePath = path.join(__dirname, `/cache/resend_${count}.${ext}`);
         const fileData = (await axios.get(att.url, { responseType: "arraybuffer" })).data;
         await fs.writeFile(filePath, fileData);
         messageData.attachment.push(fs.createReadStream(filePath));
