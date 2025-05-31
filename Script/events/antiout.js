@@ -7,12 +7,16 @@ module.exports.config = {
 };
 
 module.exports.run = async ({ event, api, Threads, Users }) => {
-  // Usunięto sprawdzanie data.antiout - antiout działa cały czas
-
   if (event.logMessageData.leftParticipantFbId == api.getCurrentUserID()) return;
 
-  const name = global.data.userName.get(event.logMessageData.leftParticipantFbId) 
-    || await Users.getNameUser(event.logMessageData.leftParticipantFbId);
+  let name = global.data.userName.get(event.logMessageData.leftParticipantFbId);
+  if (!name) {
+    try {
+      name = await Users.getNameUser(event.logMessageData.leftParticipantFbId);
+    } catch (e) {
+      name = "tego użytkownika"; // fallback, gdyby nie dało się pobrać imienia
+    }
+  }
 
   const type = (event.author == event.logMessageData.leftParticipantFbId) ? "self-separation" : "involuntary";
 
