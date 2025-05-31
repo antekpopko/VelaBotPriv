@@ -4,9 +4,9 @@ const path = require("path");
 module.exports.config = {
   name: "joinNoti",
   eventType: ["log:subscribe"],
-  version: "1.1.0",
-  credits: "CYBER BOT TEAM (polonizacja i poprawki: January)",
-  description: "Wiadomość powitalna z losowym gifem lub wideo (PL)"
+  version: "1.0.5",
+  credits: "CYBER BOT TEAM (poprawka: January)",
+  description: "Wiadomość powitalna z losowym gifem lub wideo (PL)",
 };
 
 module.exports.onLoad = function () {
@@ -17,8 +17,8 @@ module.exports.onLoad = function () {
 module.exports.run = async function ({ api, event }) {
   const { threadID, logMessageData } = event;
 
-  // Gdy bot zostaje dodany do grupy
-  if (logMessageData.addedParticipants.some(p => p.userFbId == api.getCurrentUserID())) {
+  // 🤖 Bot został dodany do grupy
+  if (logMessageData.addedParticipants.some(i => i.userFbId == api.getCurrentUserID())) {
     const botNick = `[ ${global.config.PREFIX} ] • ${global.config.BOTNAME || "BOT"}`;
     api.changeNickname(botNick, threadID, api.getCurrentUserID());
 
@@ -26,22 +26,32 @@ module.exports.run = async function ({ api, event }) {
     const hasVideo = fs.existsSync(videoPath);
 
     return api.sendMessage({
-      body: `🤖 Dziękuję za dodanie mnie do grupy!\n\n📜 Wpisz **${global.config.PREFIX}help**, aby zobaczyć dostępne komendy.`,
+      body: `🤖 Dziękuję za dodanie mnie do grupy!\n\n📜 Wpisz ${global.config.PREFIX}help, aby zobaczyć dostępne komendy.`,
       attachment: hasVideo ? fs.createReadStream(videoPath) : undefined
     }, threadID);
   }
 
+  // 🧠 Przywitaj nowych uczestników
   try {
     const threadInfo = await api.getThreadInfo(threadID);
-    const threadName = threadInfo.threadName || "tej grupie";
+    const threadName = threadInfo.threadName;
 
-    const names = logMessageData.addedParticipants.map(p => p.fullName || "nowy użytkowniku");
-    const mentions = logMessageData.addedParticipants.map(p => ({
-      tag: p.fullName || "nowy użytkowniku",
-      id: p.userFbId
-    }));
+    const participants = logMessageData.addedParticipants;
+    const userInfo = await api.getUserInfo(participants.map(p => p.userFbId));
 
-    const msg = `👋 Witaj ${names.join(", ")}!\n\n🎉 Cieszymy się, że jesteś z nami w grupie "${threadName}"! 💬`;
+    const names = [];
+    const mentions = [];
+
+    for (const p of participants) {
+      const name = userInfo[p.userFbId]?.name || p.fullName || "użytkowniku";
+      names.push(name);
+      mentions.push({
+        tag: name,
+        id: p.userFbId
+      });
+    }
+
+    const msg = `👋 Witamy ${names.join(", ")}!\n\n🎉 Miło Cię widzieć w grupie ${threadName}! 💬`;
 
     const gifDir = path.join(__dirname, "cache", "joinGif", "randomgif");
     const gifFiles = fs.existsSync(gifDir)
@@ -56,7 +66,7 @@ module.exports.run = async function ({ api, event }) {
     }
 
     return api.sendMessage(formPush, threadID);
-  } catch (err) {
-    console.error("❌ Błąd w joinNoti:", err);
+  } catch (e) {
+    console.error("Błąd w joinNoti:", e);
   }
 };
