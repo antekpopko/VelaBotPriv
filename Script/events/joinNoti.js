@@ -1,4 +1,20 @@
-module.exports.run = async function ({ api, event, Users }) {
+const fs = require("fs-extra");
+const path = require("path");
+
+module.exports.config = {
+  name: "joinNoti",
+  eventType: ["log:subscribe"],
+  version: "1.0.4",
+  credits: "CYBER BOT TEAM (polonizacja: January)",
+  description: "Wiadomość powitalna z losowym gifem lub wideo (PL)",
+};
+
+module.exports.onLoad = function () {
+  const gifFolder = path.join(__dirname, "cache", "joinGif", "randomgif");
+  if (!fs.existsSync(gifFolder)) fs.mkdirSync(gifFolder, { recursive: true });
+};
+
+module.exports.run = async function ({ api, event }) {
   const { threadID, logMessageData } = event;
 
   // Jeśli bot został dodany do grupy 🤖
@@ -6,9 +22,12 @@ module.exports.run = async function ({ api, event, Users }) {
     const botNick = `[ ${global.config.PREFIX} ] • ${global.config.BOTNAME || "BOT"}`;
     api.changeNickname(botNick, threadID, api.getCurrentUserID());
 
+    const videoPath = path.join(__dirname, "cache", "ullash.mp4");
+    const hasVideo = fs.existsSync(videoPath);
+
     return api.sendMessage({
       body: `🤖 Dziękuję za dodanie mnie do grupy!\n\n📜 Wpisz ${global.config.PREFIX}help, aby zobaczyć dostępne komendy.`,
-      attachment: fs.createReadStream(path.join(__dirname, "cache", "ullash.mp4"))
+      attachment: hasVideo ? fs.createReadStream(videoPath) : undefined
     }, threadID);
   }
 
@@ -16,27 +35,16 @@ module.exports.run = async function ({ api, event, Users }) {
     const threadInfo = await api.getThreadInfo(threadID);
     const threadName = threadInfo.threadName;
 
-    const names = [];
-    const mentions = [];
-
-    for (const participant of logMessageData.addedParticipants) {
-      let name = participant.fullName;
-      if (!name && typeof Users?.getNameUser === "function") {
-        try {
-          name = await Users.getNameUser(participant.userFbId);
-        } catch (e) {
-          name = "użytkowniku";
-        }
-      }
-      name = name || "użytkowniku";
-      names.push(name);
-      mentions.push({ tag: name, id: participant.userFbId });
-    }
+    const names = logMessageData.addedParticipants.map(p => p.fullName || "użytkowniku");
+    const mentions = logMessageData.addedParticipants.map(p => ({
+      tag: p.fullName || "użytkowniku",
+      id: p.userFbId
+    }));
 
     const msg = `👋 Witamy ${names.join(", ")}!\n\n🎉 Miło Cię widzieć w grupie ${threadName}! 💬`;
 
     const gifDir = path.join(__dirname, "cache", "joinGif", "randomgif");
-    const gifFiles = fs.readdirSync(gifDir).filter(file => file.endsWith(".mp4") || file.endsWith(".gif"));
+    const gifFiles = fs.existsSync(gifDir) ? fs.readdirSync(gifDir).filter(file => file.endsWith(".mp4") || file.endsWith(".gif")) : [];
 
     const formPush = { body: msg, mentions };
 
