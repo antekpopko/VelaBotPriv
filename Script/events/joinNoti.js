@@ -12,21 +12,28 @@ module.exports.run = async function ({ api, event, Users }) {
     }, threadID);
   }
 
-  // Nowy użytkownik został dodany 👋
   try {
     const threadInfo = await api.getThreadInfo(threadID);
     const threadName = threadInfo.threadName;
 
-    const names = await Promise.all(logMessageData.addedParticipants.map(async (p) => {
-      return p.fullName || await Users.getNameUser(p.userFbId) || "użytkowniku";
-    }));
+    const names = [];
+    const mentions = [];
 
-    const mentions = await Promise.all(logMessageData.addedParticipants.map(async (p, index) => {
-      const name = p.fullName || await Users.getNameUser(p.userFbId) || "użytkowniku";
-      return { tag: name, id: p.userFbId };
-    }));
+    for (const participant of logMessageData.addedParticipants) {
+      let name = participant.fullName;
+      if (!name && typeof Users?.getNameUser === "function") {
+        try {
+          name = await Users.getNameUser(participant.userFbId);
+        } catch (e) {
+          name = "użytkowniku";
+        }
+      }
+      name = name || "użytkowniku";
+      names.push(name);
+      mentions.push({ tag: name, id: participant.userFbId });
+    }
 
-    let msg = `👋 Witamy ${names.join(", ")}!\n\n🎉 Miło Cię widzieć w grupie ${threadName}! 💬`;
+    const msg = `👋 Witamy ${names.join(", ")}!\n\n🎉 Miło Cię widzieć w grupie ${threadName}! 💬`;
 
     const gifDir = path.join(__dirname, "cache", "joinGif", "randomgif");
     const gifFiles = fs.readdirSync(gifDir).filter(file => file.endsWith(".mp4") || file.endsWith(".gif"));
