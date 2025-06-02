@@ -1,53 +1,55 @@
 const axios = require("axios");
 const cheerio = require("cheerio");
 
-const GENIUS_API_TOKEN = "FcHZF-UEomMue3MW8E_YFFaOdQ_i85181onS553-fyrGQXa5dNHzizd64hOmfJwx"; // <- Podstaw swój token
+const GENIUS_API_TOKEN = "FcHZF-UEomMue3MW8E_YFFaOdQ_i85181onS553-fyrGQXa5dNHzizd64hOmfJwx"; // <--- Wklej tu swój token
 
 module.exports.config = {
   name: "cytat",
-  version: "1.0.0",
+  version: "1.0",
   hasPermssion: 0,
   credits: "ChatGPT + Genius",
-  description: "Losowy cytat z Genius",
+  description: "Losowy cytat z piosenki dzięki Genius API",
   commandCategory: "muzyka",
   usages: "/quote",
-  cooldowns: 5,
+  cooldowns: 5
 };
 
 module.exports.run = async ({ api, event }) => {
   try {
-    // Szukamy losowej popularnej piosenki
-    const search = await axios.get("https://api.genius.com/songs/3039923", {
-      headers: { Authorization: `Bearer ${GENIUS_API_TOKEN}` },
+    // Losowa litera do wyszukiwania
+    const letters = "abcdefghijklmnopqrstuvwxyz";
+    const randomLetter = letters[Math.floor(Math.random() * letters.length)];
+
+    // Wyszukaj piosenki
+    const response = await axios.get(`https://api.genius.com/search?q=${randomLetter}`, {
+      headers: { Authorization: `Bearer ${GENIUS_API_TOKEN}` }
     });
 
-    const songData = search.data.response.song;
-    const url = songData.url;
-    const title = songData.title;
-    const artist = songData.primary_artist.name;
+    const results = response.data.response.hits;
+    if (!results || results.length === 0) throw new Error("Brak wyników z Genius");
 
-    // Pobieramy stronę z tekstem
-    const page = await axios.get(url);
-    const $ = cheerio.load(page.data);
+    // Losowa piosenka
+    const randomSong = results[Math.floor(Math.random() * results.length)].result;
+    const songUrl = randomSong.url;
+    const title = randomSong.full_title;
 
-    // Wyciągamy tekst z .lyrics lub z nowszej struktury
-    let lyrics = $("div[class^='Lyrics__Container']").first().text().trim();
+    // Pobierz tekst ze strony
+    const html = await axios.get(songUrl);
+    const $ = cheerio.load(html.data);
+    let lyrics = $("div[class^='Lyrics__Container']").text().trim();
 
-    if (!lyrics) {
-      lyrics = $(".lyrics").text().trim(); // fallback dla starszych stron
-    }
+    if (!lyrics) lyrics = $(".lyrics").text().trim();
+    if (!lyrics) throw new Error("Nie udało się odczytać tekstu piosenki");
 
-    // Skracamy cytat do np. 2–3 linijek
+    // Wybierz losowy fragment (max 3 linijki)
     const lines = lyrics.split("\n").filter(line => line.trim() !== "");
-    const quote = lines.slice(0, 3).join("\n");
+    const start = Math.floor(Math.random() * Math.max(1, lines.length - 3));
+    const quote = lines.slice(start, start + 3).join("\n");
 
-    return api.sendMessage(
-      `🎶 "${quote}"\n— ${artist} – ${title}`,
-      event.threadID,
-      event.messageID
-    );
+    return api.sendMessage(`🎵 ${title}\n\n"${quote}"`, event.threadID, event.messageID);
+
   } catch (error) {
-    console.error("Błąd Genius:", error.message);
+    console.error("Błąd podczas pobierania cytatu:", error.message);
     return api.sendMessage("❌ Nie udało się pobrać cytatu z Genius 😢", event.threadID, event.messageID);
   }
 };
