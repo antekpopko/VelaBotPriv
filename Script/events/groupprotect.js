@@ -1,5 +1,5 @@
 const fs = require("fs");
-const path = "./cache/groupSettings.json";
+const path = "./groupSettings.json";
 
 if (!fs.existsSync(path)) fs.writeFileSync(path, "{}");
 
