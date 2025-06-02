@@ -17,13 +17,12 @@ module.exports.handleEvent = function ({ api, event }) {
 
   if (mentionedIDs.includes(adminID)) {
     const responses = [
-      "Nie oznaczaj szefa, jest teraz zajęty!",
+      "Nie oznaczaj szefa, jest teraz zajęty okradaniem ludzi!",
       "Ktoś znowu woła admina... tym razem Ty.",
       "Zanim zawołasz admina, upewnij się, że to ważne.",
       "Szef ma ważniejsze sprawy niż Twoje tagi.",
-      "Szanuj admina – nie taguj bez powodu.",
       "Czemu znowu oznaczasz admina? Daj mu spokój!",
-      "Admin śpi. Nie przeszkadzaj!",
+      "Admin okrada ludzi. Nie przeszkadzaj!",
       "Oznaczyłeś admina. Czy to było konieczne?"
     ];
 
