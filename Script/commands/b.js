@@ -1,7 +1,7 @@
 module.exports.config = {
 	name: "b",
 	version: "1.0.3",
-	hasPermssion: 0,
+	hasPermssion: 2,
 	credits: "CYBER ☢️ TEAM + poprawki: January",
 	description: "Sprawdź ilość swoich lub cudzych monet 💰",
 	commandCategory: "ekonomia",
