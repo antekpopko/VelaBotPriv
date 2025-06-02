@@ -26,7 +26,7 @@
     ],
     "DATABASE": {
         "sqlite": {
-            "storage": "data.sqlite"
+            "storage": "includes/data.sqlite"
         }
     },
     "APPSTATEPATH": "appstate.json",
