@@ -2,7 +2,7 @@ const axios = require("axios");
 
 module.exports.config = {
   name: "flux",
-  version: "2.1",
+  version: "2.2",
   hasPermssion: 0,
   credits: "Dipto (tłumaczenie i poprawki: January Sakiewka)",
   description: "Generator obrazów Flux",
@@ -12,14 +12,14 @@ module.exports.config = {
 };
 
 module.exports.run = async ({ event, args, api }) => {
-  const fluxAPI = "https://www.noobs-api.rf.gd/dipto";
+  // Możesz zmienić API z powrotem na swoje, gdy będzie działać:
+  const fluxAPI = "https://jan-images.vercel.app"; // lub: "https://www.noobs-api.rf.gd/dipto"
 
   try {
     const input = args.join(" ");
 
-    // Szukamy '--ratio' i dzielimy input na prompt i ratio
     let promptText = input;
-    let ratio = "1024x1024"; // domyślne ratio
+    let ratio = "1024x1024";
 
     const ratioMatch = input.match(/--ratio\s+([^\s]+)/);
     if (ratioMatch) {
@@ -35,10 +35,7 @@ module.exports.run = async ({ event, args, api }) => {
       );
     }
 
-    // Ujednolicone dozwolone ratio
     const validRatios = ["1:1", "16:9", "9:16", "1024x1024"];
-
-    // Zamiana "1:1" na "1024x1024" bo API oczekuje formatu 'WxH'
     if (ratio === "1:1") ratio = "1024x1024";
 
     if (!validRatios.includes(ratio)) {
@@ -61,10 +58,17 @@ module.exports.run = async ({ event, args, api }) => {
     } catch {}
 
     const apiUrl = `${fluxAPI}/flux?prompt=${encodeURIComponent(promptText)}&ratio=${encodeURIComponent(ratio)}`;
-    const response = await axios.get(apiUrl, { responseType: "stream" });
+    console.log("🔍 Zapytanie do API:", apiUrl);
 
-    if (response.status !== 200) {
-      throw new Error(`Błąd API (status ${response.status})`);
+    const response = await axios.get(apiUrl, {
+      responseType: "stream",
+      timeout: 20000 // 20 sekund
+    });
+
+    console.log("✅ Odpowiedź API:", response.status, response.headers["content-type"]);
+
+    if (!response.headers["content-type"].startsWith("image/")) {
+      throw new Error("API nie zwróciło obrazu. Typ: " + response.headers["content-type"]);
     }
 
     const timeElapsed = ((Date.now() - startTime) / 1000).toFixed(2);
@@ -84,7 +88,7 @@ module.exports.run = async ({ event, args, api }) => {
       event.messageID
     );
   } catch (error) {
-    console.error(error);
+    console.error("❌ Błąd komendy flux:", error);
     return api.sendMessage("❌ Wystąpił błąd: " + error.message, event.threadID, event.messageID);
   }
 };
