@@ -1,11 +1,11 @@
 module.exports.config = {
   name: "powiedz",
-  version: "1.0.2",
+  version: "1.1.0",
   hasPermssion: 0,
-  credits: "CYBER BOT TEAM, poprawione przez January",
-  description: "Bot odtwarza podany tekst jako dźwięk Google TTS",
-  commandCategory: "media",
-  usages: "[pl/en/ru/ja/tl] [tekst]",
+  credits: "CYBER BOT TEAM + poprawki: January Sakiewka",
+  description: "Bot odtwarza podany tekst jako dźwięk (Google TTS)",
+  commandCategory: "🔊 Media",
+  usages: "[pl/en/ru/ja/tl/bn] [tekst]",
   cooldowns: 5,
   dependencies: {
     "path": "",
@@ -14,34 +14,48 @@ module.exports.config = {
 };
 
 module.exports.run = async function({ api, event, args }) {
-  const { createReadStream, unlinkSync } = global.nodemodule["fs-extra"];
+  const { createReadStream, unlinkSync, existsSync, mkdirSync } = global.nodemodule["fs-extra"];
   const { resolve } = global.nodemodule["path"];
 
-  // Zawartość wiadomości
-  let content = (event.type === "message_reply") ? event.messageReply.body : args.join(" ");
-  if (!content) return api.sendMessage("Podaj tekst do odczytania.", event.threadID, event.messageID);
-
-  // Lista wspieranych języków
   const supportedLangs = ["pl", "en", "ru", "pr", "ja", "tl", "bn"];
-  let languageToSay = global.config.language || "pl";
-  let msg = content;
+  let input = (event.type === "message_reply") ? event.messageReply.body : args.join(" ");
+  if (!input) return api.sendMessage("❌ Podaj tekst do odczytania. Możesz też użyć np. `pl Witaj świecie`.", event.threadID, event.messageID);
 
-  // Sprawdź, czy pierwszy element to język
-  const firstWord = content.split(" ")[0].toLowerCase();
+  let language = global.config.language || "pl";
+  let message = input.trim();
+
+  const words = input.split(" ");
+  const firstWord = words[0].toLowerCase();
+
   if (supportedLangs.includes(firstWord)) {
-    languageToSay = firstWord;
-    msg = content.split(" ").slice(1).join(" ");
+    language = firstWord;
+    message = words.slice(1).join(" ");
+  }
+
+  if (!message) {
+    return api.sendMessage("❌ Podaj tekst po kodzie języka. Przykład: `pl Witaj świecie`.", event.threadID, event.messageID);
   }
 
   try {
-    const path = resolve(__dirname, "cache", `${event.threadID}_${event.senderID}.mp3`);
-    await global.utils.downloadFile(
-      `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(msg)}&tl=${languageToSay}&client=tw-ob`,
-      path
-    );
-    return api.sendMessage({ attachment: createReadStream(path) }, event.threadID, () => unlinkSync(path), event.messageID);
+    // Upewnij się, że folder cache istnieje
+    const cacheDir = resolve(__dirname, "cache");
+    if (!existsSync(cacheDir)) mkdirSync(cacheDir);
+
+    const filePath = resolve(cacheDir, `${event.threadID}_${event.senderID}.mp3`);
+    const ttsURL = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(message)}&tl=${language}&client=tw-ob`;
+
+    await global.utils.downloadFile(ttsURL, filePath);
+
+    // Reakcja
+    try { await api.setMessageReaction("🔊", event.messageID, () => {}, true); } catch {}
+
+    return api.sendMessage({
+      body: `✅ Odczytuję w języku: ${language.toUpperCase()}\n🗣️ Treść: ${message}`,
+      attachment: createReadStream(filePath)
+    }, event.threadID, () => unlinkSync(filePath), event.messageID);
+
   } catch (err) {
-    console.error(err);
-    return api.sendMessage("Wystąpił błąd podczas generowania dźwięku.", event.threadID, event.messageID);
+    console.error("Błąd przy generowaniu TTS:", err);
+    return api.sendMessage("❌ Wystąpił błąd podczas generowania dźwięku.", event.threadID, event.messageID);
   }
 };
