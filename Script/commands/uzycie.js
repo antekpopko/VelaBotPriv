@@ -27,8 +27,9 @@ ${prefix}disco — użycie: ${prefix}disco [max 25]
 ${prefix}ttt — użycie: ${prefix}ttt [liczby od 1 do 9]
 ${prefix}wybierz — użycie: ${prefix}wybierz [opcje oddzielone myslnikiem]
 
-🎁 Giveaway:
+⚙️ Systemowe:
 ${prefix}giveaway — użycie: ${prefix}giveaway [create/details/join/roll/end] [IDGiveAway]
+${prefix}zglos — użycie: ${prefix}zglos [co/kogo zglaszasz do administratora]
 
 📥 Pobieranie i multimedia:
 ${prefix}pobierz — użycie: ${prefix}pobierz [odpowiedz na wiadomosc np glosowka/film/zdjecie]
