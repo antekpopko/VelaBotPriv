@@ -1,44 +1,12 @@
 module.exports.config = {
   name: "giveaway",
   version: "0.0.1",
-  hasPermssion: 0,
+  hasPermission: 0,
   credits: "𝐂𝐘𝐁𝐄𝐑 ☢️_𖣘 -𝐁𝐎𝐓 ⚠️ 𝑻𝑬𝑨𝑴_ ☢️",
   description: "Zarządzaj giveawayami: stwórz, dołącz, losuj zwycięzcę i zakończ",
   commandCategory: "fun",
   usages: "[create/details/join/roll/end] [IDGiveAway]",
   cooldowns: 5
-};
-
-module.exports.handleReaction = async ({ api, event, Users, handleReaction }) => {
-  let data = global.data.GiveAway.get(handleReaction.ID);
-  if (!data || data.status === "close" || data.status === "ended") return;
-
-  if (event.reaction === undefined) {
-    const index = data.joined.indexOf(event.userID);
-    if (index !== -1) data.joined.splice(index, 1);
-    global.data.GiveAway.set(handleReaction.ID, data);
-
-    let value = await api.getThreadInfo(event.threadID);
-    if (!value.nicknames[event.userID]) {
-      value = (await Users.getInfo(event.userID)).name;
-    } else {
-      value = value.nicknames[event.userID];
-    }
-
-    return api.sendMessage(`${value} opuścił giveaway o ID: #${handleReaction.ID}`, event.userID);
-  }
-
-  if (!data.joined.includes(event.userID)) data.joined.push(event.userID);
-  global.data.GiveAway.set(handleReaction.ID, data);
-
-  let value = await api.getThreadInfo(event.threadID);
-  if (!value.nicknames[event.userID]) {
-    value = (await Users.getInfo(event.userID)).name;
-  } else {
-    value = value.nicknames[event.userID];
-  }
-
-  return api.sendMessage(`${value} dołączył do giveaway o ID: #${handleReaction.ID}`, event.userID);
 };
 
 module.exports.run = async ({ api, event, args, Users }) => {
@@ -52,10 +20,10 @@ module.exports.run = async ({ api, event, args, Users }) => {
     const reward = args.slice(1).join(" ");
     if (!reward) return api.sendMessage("Podaj nagrodę dla giveaway.", threadID, event.messageID);
 
-    const randomNumber = (Math.floor(Math.random() * 100000) + 100000).toString().substring(1);
-    let authorName;
+    const randomNumber = Math.floor(100000 + Math.random() * 900000).toString();
+
     const threadInfo = await api.getThreadInfo(threadID);
-    authorName = threadInfo.nicknames?.[senderID] || (await Users.getInfo(senderID)).name;
+    const authorName = threadInfo.nicknames?.[senderID] || (await Users.getInfo(senderID)).name;
 
     api.sendMessage(
       `====== GiveAway ======\n` +
@@ -99,7 +67,7 @@ module.exports.run = async ({ api, event, args, Users }) => {
       `Liczba uczestników: ${data.joined.length}\n` +
       `Status: ${data.status}`,
       threadID,
-      data.messageID
+      event.messageID
     );
 
   } else if (subcommand === "join") {
@@ -108,15 +76,15 @@ module.exports.run = async ({ api, event, args, Users }) => {
 
     const data = global.data.GiveAway.get(ID);
     if (!data) return api.sendMessage("Podane ID giveaway nie istnieje.", threadID, event.messageID);
-    if (data.joined.includes(senderID)) return api.sendMessage("Już dołączyłeś do tego giveaway.", threadID);
+    if (data.joined.includes(senderID)) return api.sendMessage("Już dołączyłeś do tego giveaway.", threadID, event.messageID);
 
     data.joined.push(senderID);
     global.data.GiveAway.set(ID, data);
 
-    let value = await api.getThreadInfo(threadID);
-    value = value.nicknames?.[senderID] || (await Users.getInfo(senderID)).name;
+    const threadInfo = await api.getThreadInfo(threadID);
+    const name = threadInfo.nicknames?.[senderID] || (await Users.getInfo(senderID)).name;
 
-    return api.sendMessage(`${value} dołączył do giveaway o ID: #${ID}`, threadID);
+    return api.sendMessage(`${name} dołączył do giveaway o ID: #${ID}`, threadID, event.messageID);
 
   } else if (subcommand === "roll") {
     const ID = args[1]?.replace("#", "");
@@ -131,6 +99,9 @@ module.exports.run = async ({ api, event, args, Users }) => {
     const winnerID = data.joined[Math.floor(Math.random() * data.joined.length)];
     const userInfo = await Users.getInfo(winnerID);
     const name = userInfo.name;
+
+    data.status = "ended";
+    global.data.GiveAway.set(ID, data);
 
     return api.sendMessage({
       body: `Gratulacje ${name}! Wygrałeś giveaway o ID: #${data.ID}\nSkontaktuj się z: ${data.author} (https://fb.me/${data.authorID})`,
@@ -148,7 +119,7 @@ module.exports.run = async ({ api, event, args, Users }) => {
     data.status = "ended";
     global.data.GiveAway.set(ID, data);
 
-    api.unsendMessage(data.messageID);
+    if (data.messageID) api.unsendMessage(data.messageID);
     return api.sendMessage(`Giveaway o ID: #${data.ID} został zakończony przez ${data.author}`, threadID, event.messageID);
 
   } else {
