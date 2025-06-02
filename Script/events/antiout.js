@@ -6,18 +6,20 @@ module.exports.config = {
   description: "Automatyczny powrót użytkownika po wyjściu z grupy"
 };
 
-module.exports.run = async ({ event, api, Users }) => {
+module.exports.run = async ({ event, api }) => {
   const leftID = event.logMessageData.leftParticipantFbId;
   const threadID = event.threadID;
 
+  // Nie rób nic, jeśli to bot opuścił grupę
   if (leftID == api.getCurrentUserID()) return;
 
-  // 🧠 Pobierz imię użytkownika lub użyj fallbacku
-  let name = global.data.userName.get(leftID);
+  // 🧠 Pobierz imię użytkownika lub użyj "użytkownika"
+  let name = global.data.userName?.get(leftID);
   if (!name) {
     try {
       const info = await api.getUserInfo(leftID);
-      name = info[leftID]?.name || "użytkownika";
+      const rawName = info[leftID]?.name;
+      name = (rawName && rawName !== "Facebook User") ? rawName : "użytkownika";
     } catch (e) {
       name = "użytkownika";
     }
@@ -31,7 +33,7 @@ module.exports.run = async ({ event, api, Users }) => {
       if (err) {
         api.sendMessage(`❌ Nie mogę dodać ponownie ${name} 😞`, threadID);
       } else {
-        api.sendMessage(`✅ Dodałem ponownie ${name} — z tej grupy nie uciekniesz! 😄`, threadID);
+        api.sendMessage(`✅ Dodałem ponownie ${name} — z tej grupy nie uciekniesz! 😉`, threadID);
       }
     });
   }
