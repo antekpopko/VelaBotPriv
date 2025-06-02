@@ -1,5 +1,5 @@
 module.exports.config = {
-  name: 'zgłosz',
+  name: 'zglos',
   version: '1.0',
   permissions: 0,
   description: 'Zgłoś problem adminowi (wysyła prywatną wiadomość do admina)',
