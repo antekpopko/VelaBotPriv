@@ -3,7 +3,7 @@ const axios = require("axios");
 module.exports = {
   config: {
     name: "pfp",
-    version: "1.0",
+    version: "1.1",
     hasPermission: 0,
     usePrefix: true,
     credits: "Dipto (tłumaczenie i uproszczenie: January)",
@@ -12,23 +12,29 @@ module.exports = {
     cooldowns: 5,
   },
 
-  run: async function ({ event, Users, api, args }) {
-    const uidFromArgs = /^\d+$/.test(args[0]) ? args[0] : null;
-    const uidFromMention = Object.keys(event.mentions)[0];
-    const uidFromReply = event.type === "message_reply" ? event.messageReply.senderID : null;
-    const uid = uidFromArgs || uidFromMention || uidFromReply || event.senderID;
+  run: async function ({ event, api, args }) {
+    try {
+      const uidFromArgs = args[0] && /^\d+$/.test(args[0]) ? args[0] : null;
+      const uidFromMention = event.mentions ? Object.keys(event.mentions)[0] : null;
+      const uidFromReply = event.type === "message_reply" ? event.messageReply.senderID : null;
+      const uid = uidFromArgs || uidFromMention || uidFromReply || event.senderID;
 
-    const userInfo = await api.getUserInfo(uid);
-    const user = userInfo[uid];
-    const avatarUrl = `https://graph.facebook.com/${uid}/picture?height=1500&width=1500&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`;
+      const userInfo = await api.getUserInfo(uid);
+      const user = userInfo[uid];
+      if (!user) {
+        return api.sendMessage("❌ Nie udało się znaleźć informacji o użytkowniku.", event.threadID, event.messageID);
+      }
 
-    // Tłumaczenie płci
-    let genderText = "❓ Nieznana";
-    if (user.gender === 1) genderText = "👩 Kobieta";
-    else if (user.gender === 2) genderText = "👨 Mężczyzna";
+      // Płeć
+      let genderText = "❓ Nieznana";
+      if (user.gender === 1) genderText = "👩 Kobieta";
+      else if (user.gender === 2) genderText = "👨 Mężczyzna";
 
-    // Dane użytkownika
-    const info = `
+      // Urodziny - user.isBirthday to boolean, więc pokażemy info inaczej
+      const birthdayText = user.isBirthday ? "🎉 Dziś są urodziny!" : "Brak danych o urodzinach";
+
+      // Info o użytkowniku
+      const info = `
 📄 Informacje o użytkowniku:
 
 👤 Imię i nazwisko: ${user.name || "Brak"}
@@ -36,18 +42,23 @@ module.exports = {
 🆔 UID: ${uid}
 📛 Nazwa użytkownika: ${user.vanity || "Brak"}
 ⚧️ Płeć: ${genderText}
-🎂 Urodziny: ${user.isBirthday !== false ? user.isBirthday : "Ukryte"}
+🎂 Urodziny: ${birthdayText}
 👥 Znajomy bota: ${user.isFriend ? "✅ Tak" : "❌ Nie"}
 🌐 Link do profilu: https://facebook.com/${uid}
-    `.trim();
+      `.trim();
 
-    // Wczytaj zdjęcie profilowe
-    const avatarStream = (await axios.get(avatarUrl, { responseType: "stream" })).data;
+      const avatarUrl = `https://graph.facebook.com/${uid}/picture?height=1500&width=1500&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`;
 
-    // Wyślij wiadomość
-    return api.sendMessage({
-      body: info,
-      attachment: avatarStream,
-    }, event.threadID, event.messageID);
+      // Pobierz zdjęcie profilowe (stream)
+      const response = await axios.get(avatarUrl, { responseType: "stream", timeout: 10000 });
+
+      return api.sendMessage({
+        body: info,
+        attachment: response.data,
+      }, event.threadID, event.messageID);
+    } catch (error) {
+      console.error("Błąd w komendzie pfp:", error);
+      return api.sendMessage("❌ Wystąpił błąd podczas pobierania informacji o użytkowniku.", event.threadID, event.messageID);
+    }
   },
 };
