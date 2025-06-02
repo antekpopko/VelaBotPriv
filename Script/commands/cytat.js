@@ -1,7 +1,7 @@
 const axios = require("axios");
 const cheerio = require("cheerio");
 
-const GENIUS_API_TOKEN = "YPBYJtsbH69MWuC0Kj730Cp1S4PpRDzWd1y_qhjzrROKSco9c7VweNeVV0qdWdyK"; // <- Podstaw swój token
+const GENIUS_API_TOKEN = "FcHZF-UEomMue3MW8E_YFFaOdQ_i85181onS553-fyrGQXa5dNHzizd64hOmfJwx"; // <- Podstaw swój token
 
 module.exports.config = {
   name: "cytat",
