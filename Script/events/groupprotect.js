@@ -1,63 +1,66 @@
 const fs = require("fs");
-const path = "./cache/groupSettings.json";
+const path = "./groupSettings.json";
 
-// Tworzenie pliku jeśli nie istnieje
 if (!fs.existsSync(path)) fs.writeFileSync(path, "{}");
 
 module.exports.config = {
-  name: "groupProtect",
-  eventType: [
-    "log:thread-name",
-    "log:thread-emoji",
-    "log:thread-color"
-  ],
-  version: "2.0",
+  name: "groupProtection",
+  eventType: ["log:thread-name", "log:thread-icon", "log:thread-color", "log:thread-emoji"],
+  version: "1.0",
   credits: "ChatGPT",
-  description: "Chroni wygląd grupy przed zmianami przez nieadminów"
+  description: "Chroni nazwę, emoji, motyw i zdjęcie grupy przed zmianami przez nie-adminów"
 };
 
-module.exports.run = async function ({ api, event }) {
-  const { threadID, author, logMessageType, logMessageData } = event;
-  const settings = JSON.parse(fs.readFileSync(path, "utf8"));
+module.exports.run = async function({ api, event }) {
+  const { threadID, logMessageData, author } = event;
   const threadInfo = await api.getThreadInfo(threadID);
-  const isAdmin = threadInfo.adminIDs.some(i => i.id === author);
+  const isAdmin = threadInfo.adminIDs.some(i => i.id == author);
+  const settings = JSON.parse(fs.readFileSync(path, "utf-8"));
 
-  // Pierwsze zapisanie danych grupy
   if (!settings[threadID]) {
     settings[threadID] = {
-      name: threadInfo.threadName || "",
-      emoji: threadInfo.emoji || "👍",
-      color: threadInfo.threadColor || "#0084ff"
+      name: threadInfo.threadName,
+      emoji: threadInfo.emoji,
+      color: threadInfo.color,
+      icon: threadInfo.imageSrc || null
     };
     fs.writeFileSync(path, JSON.stringify(settings, null, 2));
     return;
   }
 
-  // Jeśli admin – aktualizuj dane
   if (isAdmin) {
-    if (logMessageType === "log:thread-name") {
-      settings[threadID].name = logMessageData.name;
-    } else if (logMessageType === "log:thread-emoji") {
+    // Zaktualizuj zapisane dane, bo admin może zmieniać
+    if (event.logMessageType === "log:thread-name") {
+      settings[threadID].name = logMessageData.name || threadInfo.threadName;
+    }
+    if (event.logMessageType === "log:thread-emoji") {
       settings[threadID].emoji = logMessageData.emoji;
-    } else if (logMessageType === "log:thread-color") {
+    }
+    if (event.logMessageType === "log:thread-color") {
       settings[threadID].color = logMessageData.theme_color;
     }
     fs.writeFileSync(path, JSON.stringify(settings, null, 2));
     return;
   }
 
-  // Cofnij zmianę, jeśli nieadmin
+  // Przywróć zmienione dane jeśli użytkownik nie jest adminem
   try {
-    if (logMessageType === "log:thread-name") {
-      await api.setTitle(settings[threadID].name, threadID);
-    } else if (logMessageType === "log:thread-emoji") {
-      await api.changeThreadEmoji(settings[threadID].emoji, threadID);
-    } else if (logMessageType === "log:thread-color") {
-      await api.changeThreadColor(settings[threadID].color, threadID);
+    switch (event.logMessageType) {
+      case "log:thread-name":
+        await api.setTitle(settings[threadID].name, threadID);
+        break;
+      case "log:thread-emoji":
+        await api.changeThreadEmoji(settings[threadID].emoji, threadID);
+        break;
+      case "log:thread-color":
+        await api.changeThreadColor(settings[threadID].color, threadID);
+        break;
+      case "log:thread-icon":
+        // Niestety nie da się bezpośrednio przywrócić ikony grupy
+        break;
     }
-
-    api.sendMessage("🚫 Tylko administratorzy mogą zmieniać wygląd grupy. Cofnięto zmianę.", threadID);
-  } catch (err) {
-    console.error("Błąd przy przywracaniu ustawień:", err);
+    api.sendMessage(`🚫 Tylko administratorzy mogą zmieniać wygląd grupy. Zmiany zostały cofnięte.`, threadID);
+  } catch (e) {
+    console.error("Błąd przywracania ustawień grupy:", e);
   }
 };
