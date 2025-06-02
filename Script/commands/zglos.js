@@ -9,26 +9,38 @@ module.exports.config = {
   cooldowns: 5,
 };
 
-module.exports.run = function({ api, event, args }) {
+module.exports.run = async function({ api, event, args }) {
   const zgłoszenie = args.join(' ');
   if (!zgłoszenie) {
     return api.sendMessage('❌ Podaj treść zgłoszenia.\nUżycie: zglos [treść]', event.threadID, event.messageID);
   }
 
-  const adminIDs = ['61563352322805']; // ← wpisz tu swoje ID jako stringi
+  // 👉 Wpisz tutaj prawdziwe ID adminów
+  const adminIDs = ['61563352322805']; // Zmień na własne UID
 
   const msg = `📨 Nowe zgłoszenie od użytkownika:
 👤 ID: ${event.senderID}
-💬 Wątek: ${event.threadID}
-📝 Treść: ${zgłoszenie}`;
+📍 Wątek ID: ${event.threadID}
+📝 Treść zgłoszenia: ${zgłoszenie}`;
 
-  for (let id of adminIDs) {
-    api.sendMessage(msg, id, (err) => {
+  let sukces = 0, blad = 0;
+
+  for (const id of adminIDs) {
+    await api.sendMessage(msg, id, (err) => {
       if (err) {
-        return api.sendMessage('❌ Nie udało się wysłać zgłoszenia do admina.', event.threadID, event.messageID);
+        console.error(`[zglos] ❌ Błąd przy wysyłaniu do admina ${id}:`, err);
+        blad++;
+      } else {
+        sukces++;
+      }
+
+      if (sukces + blad === adminIDs.length) {
+        if (sukces > 0) {
+          api.sendMessage('✅ Twoje zgłoszenie zostało wysłane do administratora.', event.threadID, event.messageID);
+        } else {
+          api.sendMessage('❌ Nie udało się wysłać zgłoszenia. Skontaktuj się bezpośrednio z administracją.', event.threadID, event.messageID);
+        }
       }
     });
   }
-
-  return api.sendMessage('✅ Twoje zgłoszenie zostało wysłane do admina. Dziękujemy!', event.threadID, event.messageID);
 };
