@@ -43,7 +43,9 @@ module.exports.run = async function ({ api, event }) {
     const mentions = [];
 
     for (const p of participants) {
-      const name = userInfo[p.userFbId]?.name || p.fullName || "użytkowniku";
+      const user = userInfo[p.userFbId];
+      const name = (user && user.name && user.name !== "Facebook User") ? user.name : (p.fullName || "użytkowniku");
+      
       names.push(name);
       mentions.push({
         tag: name,
