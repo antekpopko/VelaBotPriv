@@ -1,34 +1,34 @@
 module.exports.config = {
   name: 'zglos',
-  version: '1.0',
-  permissions: 0,
-  description: 'Zgłoś problem adminowi (wysyła prywatną wiadomość do admina)',
-  usage: '[treść zgłoszenia]',
-  credits: 'January Sakiewka'
+  version: '1.0.0',
+  hasPermission: 0,
+  credits: 'January Sakiewka',
+  description: 'Zgłoś problem do administratora (wiadomość prywatna)',
+  commandCategory: 'grupa',
+  usages: '[treść zgłoszenia]',
+  cooldowns: 5,
 };
 
-module.exports.run = async function({ args, api, event }) {
-  const content = args.join(' ');
-  if (!content) {
+module.exports.run = function({ api, event, args }) {
+  const zgłoszenie = args.join(' ');
+  if (!zgłoszenie) {
     return api.sendMessage('❌ Podaj treść zgłoszenia.\nUżycie: zglos [treść]', event.threadID, event.messageID);
   }
 
-  // Wprowadź tutaj ID adminów (jako stringi!)
-  const adminIDs = ['61563352322805']; // ← ZMIEŃ na prawidłowe ID adminów!
+  const adminIDs = ['61563352322805']; // ← wpisz tu swoje ID jako stringi
 
-  const messageToAdmin = `📢 Nowe zgłoszenie od użytkownika:
+  const msg = `📨 Nowe zgłoszenie od użytkownika:
 👤 ID: ${event.senderID}
 💬 Wątek: ${event.threadID}
-📝 Treść: ${content}`;
+📝 Treść: ${zgłoszenie}`;
 
-  try {
-    for (const adminID of adminIDs) {
-      await api.sendMessage(messageToAdmin, adminID);
-    }
-
-    return api.sendMessage('✅ Twoje zgłoszenie zostało wysłane do adminów. Dziękujemy!', event.threadID, event.messageID);
-  } catch (err) {
-    console.error('Błąd podczas wysyłania wiadomości do admina:', err);
-    return api.sendMessage('❌ Wystąpił błąd przy wysyłaniu zgłoszenia:\n' + err.message, event.threadID, event.messageID);
+  for (let id of adminIDs) {
+    api.sendMessage(msg, id, (err) => {
+      if (err) {
+        return api.sendMessage('❌ Nie udało się wysłać zgłoszenia do admina.', event.threadID, event.messageID);
+      }
+    });
   }
+
+  return api.sendMessage('✅ Twoje zgłoszenie zostało wysłane do admina. Dziękujemy!', event.threadID, event.messageID);
 };
