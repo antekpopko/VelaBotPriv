@@ -2,7 +2,7 @@ const axios = require("axios");
 
 module.exports.config = {
   name: "drgs",
-  version: "1.1",
+  version: "1.2",
   hasPermssion: 0,
   credits: "January Sakiewka + ChatGPT",
   description: "Wyświetla info o narkotykach z Wikipedii i PsychonautWiki z tłumaczeniem i emoji.",
@@ -12,7 +12,7 @@ module.exports.config = {
 };
 
 const axiosInstance = axios.create({
-  timeout: 7000 // 7 sekund timeoutu na każde zapytanie
+  timeout: 7000
 });
 
 const emojiMap = {
@@ -47,7 +47,8 @@ async function translateToPL(text) {
     });
     return res.data.translatedText;
   } catch (e) {
-    return text; // fallback do oryginalnego tekstu
+    console.warn("Błąd tłumaczenia:", e.message);
+    return text;
   }
 }
 
@@ -76,9 +77,8 @@ async function getPsychonautSummary(query) {
     if (res.data.extract) {
       let drugClass = null;
       if (res.data.infobox && res.data.infobox.drug_class) {
-        drugClass = Array.isArray(res.data.infobox.drug_class)
-          ? res.data.infobox.drug_class[0].toLowerCase()
-          : res.data.infobox.drug_class.toLowerCase();
+        const dc = res.data.infobox.drug_class;
+        drugClass = Array.isArray(dc) ? dc[0].toLowerCase() : dc.toLowerCase();
       }
       return {
         title: res.data.title,
@@ -99,13 +99,13 @@ module.exports.run = async function({ api, event, args }) {
   }
 
   const query = args.join(" ");
+  const psychoQuery = query.toLowerCase().replace(/\s+/g, "-");
   const results = [];
 
-  // Równoległe pobieranie danych
   const [plWiki, enWiki, psycho] = await Promise.all([
     getWikiSummary(query, 'pl'),
     getWikiSummary(query, 'en'),
-    getPsychonautSummary(query.toLowerCase())
+    getPsychonautSummary(psychoQuery)
   ]);
 
   if (plWiki) {
@@ -120,10 +120,10 @@ module.exports.run = async function({ api, event, args }) {
   if (psycho) {
     const translatedPsycho = await translateToPL(psycho.extract);
     let emoji = emojiMap.other;
-    if (psycho.drugClass) {
-      for (const [key, val] of Object.entries(emojiMap)) {
+    if (psycho.drugClass && typeof psycho.drugClass === "string") {
+      for (const [key, emojiVal] of Object.entries(emojiMap)) {
         if (psycho.drugClass.includes(key)) {
-          emoji = val;
+          emoji = emojiVal;
           break;
         }
       }
