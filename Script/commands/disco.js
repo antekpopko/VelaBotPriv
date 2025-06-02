@@ -1,6 +1,6 @@
 module.exports.config = {
   name: "disco",
-  version: "1.1.1",
+  version: "1.2",
   hasPermssion: 0,
   credits: "CYBER ⚡ + ChatGPT",
   description: "Zmienia kolor rozmowy losowo, określoną liczbę razy (max 25)",
@@ -10,10 +10,13 @@ module.exports.config = {
 };
 
 module.exports.run = async ({ api, event, args }) => {
-  const count = parseInt(args[0]);
-  if (isNaN(count)) return api.sendMessage("❌ To nie jest liczba!", event.threadID);
-  if (count < 1) return api.sendMessage("⚠️ Liczba musi być większa od 0!", event.threadID);
-  if (count > 25) return api.sendMessage("🚫 Maksymalna liczba zmian to 25!", event.threadID);
+  let count = 10; // domyślna liczba zmian
+  if (args[0]) {
+    count = parseInt(args[0]);
+    if (isNaN(count)) return api.sendMessage("❌ To nie jest liczba!", event.threadID);
+    if (count < 1) return api.sendMessage("⚠️ Liczba musi być większa od 0!", event.threadID);
+    if (count > 25) return api.sendMessage("🚫 Maksymalna liczba zmian to 25!", event.threadID);
+  }
 
   const colors = [
     '196241301102133', '169463077092846', '2442142322678320', '234137870477637',
@@ -23,7 +26,8 @@ module.exports.run = async ({ api, event, args }) => {
     '809305022860427'
   ];
 
-  api.sendMessage(`🌈 Rozpoczynam tęczowy pokaz z ${count} zmianami...`, event.threadID);
+  // Wyślij wiadomość startową i zapamiętaj jej ID, żeby później usunąć
+  const startMsg = await api.sendMessage(`🌈 Rozpoczynam tęczowy pokaz z ${count} zmianami...`, event.threadID);
 
   for (let i = 0; i < count; i++) {
     const randomColor = colors[Math.floor(Math.random() * colors.length)];
@@ -31,9 +35,13 @@ module.exports.run = async ({ api, event, args }) => {
       await api.changeThreadColor(randomColor, event.threadID);
     } catch (e) {
       console.log("Błąd zmiany koloru:", e.message);
+      // Możesz przerwać pętlę, jeśli błąd jest krytyczny
+      // break;
     }
-    await new Promise(res => setTimeout(res, 600)); // 1.2 sekundy pomiędzy
+    await new Promise(res => setTimeout(res, 600));
   }
 
+  // Usuń wiadomość startową i wyślij podsumowanie
+  await api.unsendMessage(startMsg.messageID);
   return api.sendMessage("✅ Tęczowy pokaz zakończony!", event.threadID);
 };
