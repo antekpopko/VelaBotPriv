@@ -17,97 +17,129 @@ function isBoardFull(board) {
 }
 
 function displayBoard(board) {
-  let display = "";
+  let str = "";
   for (let i = 0; i < 9; i++) {
-    display += board[i] ? board[i] : "⬛";
-    display += (i+1) % 3 === 0 ? "\n" : " ";
+    str += board[i] ? board[i] : `${i+1}`;
+    str += (i+1) % 3 === 0 ? "\n" : " ";
   }
-  return display;
+  return str.replace(/[1-9]/g, "⬛"); // zakryj numery
 }
 
-function makeBotMove(board, playerID) {
-  const botPlayer = games[playerID].botPlayer;
-  const opponent = botPlayer === "❌" ? "⭕" : "❌";
-
-  // Prosty ruch botem - pierwszy wolny
+function getBestMove(board, botSymbol, playerSymbol) {
+  // Wygrana?
   for (let i = 0; i < 9; i++) {
-    if (board[i] === null) {
-      board[i] = botPlayer;
-      break;
+    if (!board[i]) {
+      board[i] = botSymbol;
+      if (checkWinner(board) === botSymbol) {
+        board[i] = null;
+        return i;
+      }
+      board[i] = null;
     }
   }
+
+  // Blokowanie gracza
+  for (let i = 0; i < 9; i++) {
+    if (!board[i]) {
+      board[i] = playerSymbol;
+      if (checkWinner(board) === playerSymbol) {
+        board[i] = null;
+        return i;
+      }
+      board[i] = null;
+    }
+  }
+
+  // Inaczej pierwszy wolny
+  return board.findIndex(cell => cell === null);
+}
+
+function makeBotMove(game) {
+  const { board, botPlayer, playerSymbol } = game;
+  const move = getBestMove(board, botPlayer, playerSymbol);
+  if (move !== -1) board[move] = botPlayer;
 }
 
 function resetGame(playerID) {
+  const first = Math.random() < 0.5;
   games[playerID] = {
     board: Array(9).fill(null),
-    currentPlayer: Math.random() < 0.5 ? "❌" : "⭕",
     inProgress: true,
-    botPlayer: "❌"
+    playerSymbol: first ? "❌" : "⭕",
+    botPlayer: first ? "⭕" : "❌"
   };
 }
 
 module.exports.config = {
   name: "ttt",
-  version: "2.0",
+  version: "2.1",
   hasPermssion: 0,
-  credits: "Vex_Kshitiz",
-  description: "Prosta gra kółko i krzyżyk z botem",
-  commandCategory: "game",
+  credits: "January + Vex_Kshitiz",
+  description: "Prosta gra kółko i krzyżyk z botem (z AI)",
+  commandCategory: "🎮 Gry",
   usages: "[1-9] aby wykonać ruch",
   cooldowns: 3
 };
 
 module.exports.run = async function({ api, event, args }) {
   const playerID = event.senderID;
+
+  // Start gry
   if (!games[playerID] || !games[playerID].inProgress) {
     resetGame(playerID);
-    const boardMsg = displayBoard(games[playerID].board);
-    return api.sendMessage(`Rozpoczynam grę!\n${boardMsg}\nWpisz liczbę 1-9 aby wykonać ruch.`, event.threadID, event.messageID);
+
+    const game = games[playerID];
+    let msg = `🎮 Rozpoczynamy grę!\nJesteś: ${game.playerSymbol}, bot: ${game.botPlayer}`;
+
+    // Jeśli bot zaczyna
+    if (game.botPlayer === "❌") {
+      makeBotMove(game);
+      msg += "\n\n🤖 Bot wykonał pierwszy ruch:";
+    }
+
+    return api.sendMessage(`${msg}\n\n${displayBoard(game.board)}\n\n📝 Wpisz liczbę od 1 do 9, aby wykonać ruch.`, event.threadID, event.messageID);
   }
 
+  const game = games[playerID];
   const pos = parseInt(args[0]);
+
   if (isNaN(pos) || pos < 1 || pos > 9) {
-    return api.sendMessage("Podaj poprawną pozycję od 1 do 9.", event.threadID, event.messageID);
+    return api.sendMessage("❗ Podaj liczbę od 1 do 9, aby zagrać.", event.threadID, event.messageID);
   }
 
-  if (games[playerID].board[pos - 1] !== null) {
-    return api.sendMessage("To pole jest już zajęte. Wybierz inne.", event.threadID, event.messageID);
+  const idx = pos - 1;
+  if (game.board[idx] !== null) {
+    return api.sendMessage("🚫 To pole jest już zajęte. Wybierz inne.", event.threadID, event.messageID);
   }
 
-  // Ruch gracza (zawsze "⭕")
-  games[playerID].board[pos - 1] = "⭕";
+  game.board[idx] = game.playerSymbol;
 
-  // Sprawdź czy gracz wygrał
-  if (checkWinner(games[playerID].board) === "⭕") {
-    const finalBoard = displayBoard(games[playerID].board);
-    games[playerID].inProgress = false;
-    return api.sendMessage(`Gratulacje! Wygrałeś!\n${finalBoard}`, event.threadID, event.messageID);
+  if (checkWinner(game.board) === game.playerSymbol) {
+    const final = displayBoard(game.board);
+    delete games[playerID];
+    return api.sendMessage(`🎉 Gratulacje, wygrałeś!\n${final}`, event.threadID, event.messageID);
   }
 
-  if (isBoardFull(games[playerID].board)) {
-    const finalBoard = displayBoard(games[playerID].board);
-    games[playerID].inProgress = false;
-    return api.sendMessage(`Remis!\n${finalBoard}`, event.threadID, event.messageID);
+  if (isBoardFull(game.board)) {
+    const final = displayBoard(game.board);
+    delete games[playerID];
+    return api.sendMessage(`🤝 Remis!\n${final}`, event.threadID, event.messageID);
   }
 
-  // Ruch bota
-  makeBotMove(games[playerID].board, playerID);
+  // Bot move
+  makeBotMove(game);
 
-  // Sprawdź czy bot wygrał
-  if (checkWinner(games[playerID].board) === "❌") {
-    const finalBoard = displayBoard(games[playerID].board);
-    games[playerID].inProgress = false;
-    return api.sendMessage(`Bot wygrał!\n${finalBoard}`, event.threadID, event.messageID);
+  if (checkWinner(game.board) === game.botPlayer) {
+    const final = displayBoard(game.board);
+    delete games[playerID];
+    return api.sendMessage(`💀 Bot wygrał!\n${final}`, event.threadID, event.messageID);
   }
 
-  if (isBoardFull(games[playerID].board)) {
-    const finalBoard = displayBoard(games[playerID].board);
-    games[playerID].inProgress = false;
-    return api.sendMessage(`Remis!\n${finalBoard}`, event.threadID, event.messageID);
+  if (isBoardFull(game.board)) {
+    const final = displayBoard(game.board);
+    delete games[playerID];
+    return api.sendMessage(`🤝 Remis!\n${final}`, event.threadID, event.messageID);
   }
 
-  // Kontynuuj grę
-  const boardMsg = displayBoard(games[playerID].board);
-  api.sendMessage(`Twój ruch:\n${boardMsg}`, event.threadID, event.messageID);
+  return api.sendMessage(`🧠 Twój ruch:\n${displayBoard(game.board)}`, event.threadID, event.messageID);
 };
