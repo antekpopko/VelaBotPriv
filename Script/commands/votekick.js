@@ -1,81 +1,80 @@
 module.exports.config = {
   name: "votekick",
-  version: "1.1.0",
+  version: "1.0.1",
   hasPermission: 2,
-  credits: "ChatGPT + TY",
-  description: "Głosowanie na wyrzucenie użytkownika z grupy (z limitem czasu)",
-  commandCategory: "admin",
-  usages: "[tag użytkownika] [liczba głosów]",
+  credits: "ChatGPT + user",
+  description: "Rozpocznij głosowanie na wyrzucenie użytkownika",
+  commandCategory: "group",
+  usages: "@użytkownik liczba_głosów",
   cooldowns: 5
 };
 
-const activeVotes = new Map();
-
 module.exports.run = async function ({ api, event, args }) {
-  const threadID = event.threadID;
-  const senderID = event.senderID;
+  const { threadID, senderID, messageID, mentions } = event;
+  const mentioned = Object.keys(mentions);
+  const voteCount = parseInt(args[args.length - 1]);
 
-  const mentioned = Object.keys(event.mentions);
-  if (mentioned.length === 0 || isNaN(args[1])) {
-    return api.sendMessage("❗ Użycie: votekick @użytkownik liczba_głosów", threadID, event.messageID);
+  if (mentioned.length === 0 || isNaN(voteCount)) {
+    return api.sendMessage("❗ Użycie: votekick @użytkownik liczba_głosów", threadID, messageID);
+  }
+
+  const threadInfo = await api.getThreadInfo(threadID);
+  const admins = threadInfo.adminIDs.map(a => a.id);
+
+  if (!admins.includes(senderID)) {
+    return api.sendMessage("🚫 Tylko administrator grupy może rozpocząć głosowanie.", threadID, messageID);
   }
 
   const targetID = mentioned[0];
-  const targetName = event.mentions[targetID];
-  const requiredVotes = parseInt(args[1]);
+  const targetName = mentions[targetID].replace("@", "");
 
-  const threadInfo = await api.getThreadInfo(threadID);
-  if (!threadInfo.adminIDs.some(e => e.id == senderID)) {
-    return api.sendMessage("❌ Tylko administratorzy mogą rozpocząć głosowanie.", threadID, event.messageID);
-  }
+  const msg = await api.sendMessage(
+    `🗳️ Głosowanie rozpoczęte!\n👤 Cel: ${targetName}\n✅ Potrzebne głosy: ${voteCount}\n⏱️ Czas: 2 minuty\n\nReaguj na tę wiadomość, aby oddać głos.`,
+    threadID
+  );
 
-  const msg = `📢 Rozpoczęto głosowanie na wyrzucenie ${targetName}!\n` +
-              `✅ Aby zagłosować, zareaguj na tę wiadomość.\n` +
-              `📊 Potrzebne głosy: ${requiredVotes}\n` +
-              `⏳ Głosowanie trwa 2 minuty.`;
+  const voteData = {
+    name: this.config.name,
+    messageID: msg.messageID,
+    threadID,
+    targetID,
+    required: voteCount,
+    voters: new Set()
+  };
 
-  api.sendMessage(msg, threadID, async (err, info) => {
-    if (err) return;
+  global.client.handleReaction.push(voteData);
 
-    const voteID = `${threadID}_${info.messageID}`;
-    activeVotes.set(voteID, {
-      targetID,
-      requiredVotes,
-      voters: new Set(),
-      messageID: info.messageID,
-      threadID,
-      timeout: setTimeout(async () => {
-        const currentVote = activeVotes.get(voteID);
-        if (currentVote && currentVote.voters.size < currentVote.requiredVotes) {
-          await api.sendMessage(`⏳ Głosowanie zakończone. Nie osiągnięto wymaganej liczby głosów (${currentVote.voters.size}/${currentVote.requiredVotes}).`, threadID);
-        }
-        activeVotes.delete(voteID);
-      }, 2 * 60 * 1000) // 2 minuty
-    });
-
-    global.client.handleReaction.push({
-      name: module.exports.config.name,
-      messageID: info.messageID,
-      author: senderID,
-      voteID
-    });
-  });
+  // Automatyczne zakończenie po 2 minutach
+  setTimeout(() => {
+    const index = global.client.handleReaction.findIndex(e => e.messageID === msg.messageID);
+    if (index !== -1) {
+      global.client.handleReaction.splice(index, 1);
+      api.sendMessage("⌛ Głosowanie zakończone — nie osiągnięto wymaganej liczby głosów.", threadID);
+    }
+  }, 2 * 60 * 1000);
 };
 
 module.exports.handleReaction = async function ({ api, event, handleReaction }) {
-  const { threadID, messageID, userID } = event;
-  const voteID = handleReaction.voteID;
+  const { threadID, userID } = event;
+  const data = handleReaction;
 
-  const voteData = activeVotes.get(voteID);
-  if (!voteData || voteData.messageID !== messageID || voteData.threadID !== threadID) return;
-  if (voteData.voters.has(userID)) return;
+  if (userID === data.targetID) return; // cel nie może na siebie głosować
+  if (data.voters.has(userID)) return; // tylko jeden głos
 
-  voteData.voters.add(userID);
+  data.voters.add(userID);
 
-  if (voteData.voters.size >= voteData.requiredVotes) {
-    clearTimeout(voteData.timeout);
-    await api.sendMessage(`✅ Wystarczająca liczba głosów (${voteData.voters.size})!\n👢 Użytkownik zostaje wyrzucony.`, threadID);
-    await api.removeUserFromGroup(voteData.targetID, threadID);
-    activeVotes.delete(voteID);
+  const currentVotes = data.voters.size;
+
+  if (currentVotes >= data.required) {
+    try {
+      await api.removeUserFromGroup(data.targetID, threadID);
+      api.sendMessage(`✅ Cel osiągnięty — użytkownik został usunięty z grupy.`, threadID);
+    } catch (err) {
+      api.sendMessage("⚠️ Nie udało się wyrzucić użytkownika (być może jest adminem).", threadID);
+    }
+
+    // Usuń głosowanie
+    const index = global.client.handleReaction.findIndex(e => e.messageID === data.messageID);
+    if (index !== -1) global.client.handleReaction.splice(index, 1);
   }
 };
