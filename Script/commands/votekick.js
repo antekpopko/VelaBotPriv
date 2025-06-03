@@ -1,76 +1,81 @@
-const fs = require("fs");
-
 module.exports.config = {
   name: "votekick",
-  version: "1.2.0",
-  hasPermssion: 1,
-  credits: "January Sakiewka",
-  description: "Głosowanie na wyrzucenie użytkownika przez reakcje",
-  commandCategory: "Grupa",
-  usages: "votekick @osoba liczba_głosów",
+  version: "1.1.0",
+  hasPermission: 2,
+  credits: "ChatGPT + TY",
+  description: "Głosowanie na wyrzucenie użytkownika z grupy (z limitem czasu)",
+  commandCategory: "admin",
+  usages: "[tag użytkownika] [liczba głosów]",
   cooldowns: 5
 };
 
-let activeVotes = {}; // { threadID: { targetID, requiredVotes, voters, messageID } }
+const activeVotes = new Map();
 
-module.exports.run = async ({ api, event, args }) => {
-  const { threadID, senderID, mentions, isGroup } = event;
+module.exports.run = async function ({ api, event, args }) {
+  const threadID = event.threadID;
+  const senderID = event.senderID;
 
-  if (!isGroup) return api.sendMessage("❌ Ta komenda działa tylko w grupach.", threadID);
+  const mentioned = Object.keys(event.mentions);
+  if (mentioned.length === 0 || isNaN(args[1])) {
+    return api.sendMessage("❗ Użycie: votekick @użytkownik liczba_głosów", threadID, event.messageID);
+  }
 
-  // Sprawdzenie czy nadawca to admin
+  const targetID = mentioned[0];
+  const targetName = event.mentions[targetID];
+  const requiredVotes = parseInt(args[1]);
+
   const threadInfo = await api.getThreadInfo(threadID);
-  const adminIDs = threadInfo.adminIDs.map(a => a.id);
-  if (!adminIDs.includes(senderID)) return api.sendMessage("❌ Tylko administratorzy mogą rozpocząć głosowanie.", threadID);
+  if (!threadInfo.adminIDs.some(e => e.id == senderID)) {
+    return api.sendMessage("❌ Tylko administratorzy mogą rozpocząć głosowanie.", threadID, event.messageID);
+  }
 
-  if (args.length < 2 || Object.keys(mentions).length === 0)
-    return api.sendMessage("ℹ️ Użycie: votekick @osoba liczba_głosów", threadID);
+  const msg = `📢 Rozpoczęto głosowanie na wyrzucenie ${targetName}!\n` +
+              `✅ Aby zagłosować, zareaguj na tę wiadomość.\n` +
+              `📊 Potrzebne głosy: ${requiredVotes}\n` +
+              `⏳ Głosowanie trwa 2 minuty.`;
 
-  const mentionID = Object.keys(mentions)[0];
-  const requiredVotes = parseInt(args[args.length - 1]);
+  api.sendMessage(msg, threadID, async (err, info) => {
+    if (err) return;
 
-  if (isNaN(requiredVotes) || requiredVotes < 1)
-    return api.sendMessage("❌ Podaj poprawną liczbę głosów potrzebnych do wyrzucenia.", threadID);
+    const voteID = `${threadID}_${info.messageID}`;
+    activeVotes.set(voteID, {
+      targetID,
+      requiredVotes,
+      voters: new Set(),
+      messageID: info.messageID,
+      threadID,
+      timeout: setTimeout(async () => {
+        const currentVote = activeVotes.get(voteID);
+        if (currentVote && currentVote.voters.size < currentVote.requiredVotes) {
+          await api.sendMessage(`⏳ Głosowanie zakończone. Nie osiągnięto wymaganej liczby głosów (${currentVote.voters.size}/${currentVote.requiredVotes}).`, threadID);
+        }
+        activeVotes.delete(voteID);
+      }, 2 * 60 * 1000) // 2 minuty
+    });
 
-  activeVotes[threadID] = {
-    targetID: mentionID,
-    requiredVotes,
-    voters: new Set()
-  };
-
-  return api.sendMessage(
-    `🗳️ Głosowanie rozpoczęte!\n👤 Użytkownik: ${mentions[mentionID].replace("@", "")}\n📊 Wymagane głosy: ${requiredVotes}\n\nDodaj **dowolną reakcję** do tej wiadomości, aby zagłosować.`,
-    threadID,
-    async (err, info) => {
-      if (err) return console.error(err);
-      activeVotes[threadID].messageID = info.messageID;
-    }
-  );
+    global.client.handleReaction.push({
+      name: module.exports.config.name,
+      messageID: info.messageID,
+      author: senderID,
+      voteID
+    });
+  });
 };
 
-module.exports.handleReaction = async ({ api, event }) => {
+module.exports.handleReaction = async function ({ api, event, handleReaction }) {
   const { threadID, messageID, userID } = event;
+  const voteID = handleReaction.voteID;
 
-  if (!activeVotes[threadID]) return;
-  if (messageID !== activeVotes[threadID].messageID) return;
-  if (activeVotes[threadID].voters.has(userID)) return;
+  const voteData = activeVotes.get(voteID);
+  if (!voteData || voteData.messageID !== messageID || voteData.threadID !== threadID) return;
+  if (voteData.voters.has(userID)) return;
 
-  activeVotes[threadID].voters.add(userID);
+  voteData.voters.add(userID);
 
-  const currentVotes = activeVotes[threadID].voters.size;
-  const required = activeVotes[threadID].requiredVotes;
-
-  if (currentVotes >= required) {
-    const targetID = activeVotes[threadID].targetID;
-    delete activeVotes[threadID];
-
-    try {
-      await api.removeUserFromGroup(targetID, threadID);
-      return api.sendMessage("✅ Głosowanie zakończone! Użytkownik został wyrzucony z grupy.", threadID);
-    } catch (err) {
-      return api.sendMessage("❌ Nie udało się wyrzucić użytkownika. Czy bot ma uprawnienia administratora?", threadID);
-    }
-  } else {
-    return api.sendMessage(`📥 Głos zaakceptowany! (${currentVotes}/${required})`, threadID);
+  if (voteData.voters.size >= voteData.requiredVotes) {
+    clearTimeout(voteData.timeout);
+    await api.sendMessage(`✅ Wystarczająca liczba głosów (${voteData.voters.size})!\n👢 Użytkownik zostaje wyrzucony.`, threadID);
+    await api.removeUserFromGroup(voteData.targetID, threadID);
+    activeVotes.delete(voteID);
   }
 };
