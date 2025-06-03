@@ -1,6 +1,6 @@
 module.exports.config = {
 	name: "setmoney",
-	version: "1.0.0",
+	version: "1.0.2",
 	hasPermssion: 2,
 	credits: "CYBER ☢️ TEAM + poprawki: January",
 	description: "Zmień saldo swoje lub oznaczonej osoby 💰",
