@@ -35,7 +35,7 @@
   "homepage": "https://github.com/cyber-ullash/CYBER-BOT-COMMUNITY/issues",
   "dependencies": {
     "@distube/ytdl-core": "^4.15.0",
-    "@miraipr0ject/assets": "^1.1.0",
+    "@miraipr0ject/assets": "^1.0.9",
     "@replit/database": "^2.1.0",
     "@supercharge/strings": "^1.29.0",
     "akaneko": "^5.2.5",
