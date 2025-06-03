@@ -2,9 +2,9 @@ const axios = require("axios");
 
 module.exports.config = {
   name: "flux",
-  version: "2.0",
+  version: "2.1",
   hasPermssion: 0,
-  credits: "Dipto (tłumaczenie i poprawki: January Sakiewka)",
+  credits: "Dipto (poprawki: January Sakiewka)",
   description: "Generator obrazów Flux",
   commandCategory: "🖼️ Generator Obrazów",
   usage: "{pn} [opis] --ratio 1024x1024\n{pn} [opis]",
@@ -16,14 +16,11 @@ module.exports.run = async ({ event, args, api }) => {
 
   try {
     const input = args.join(" ");
-    const [promptTextRaw, ratioRaw = "1:1"] = input.includes("--ratio")
-      ? input.split("--ratio").map(s => s.trim())
-      : [input, "1:1"];
+    const ratioMatch = input.match(/--ratio\s+(\S+)/i);
+    const ratio = ratioMatch ? ratioMatch[1] : "1024x1024";
+    const promptText = input.replace(/--ratio\s+\S+/i, "").trim();
 
-    const promptText = decodeURIComponent(encodeURIComponent(promptTextRaw.trim()));
-    const ratio = ratioRaw.replace(":", "x");
-
-    if (!promptText || promptText === "") {
+    if (!promptText) {
       return api.sendMessage(
         "❌ Podaj opis obrazu!\nPrzykład:\nflux cyberpunkowe miasto nocą --ratio 1024x1024",
         event.threadID,
