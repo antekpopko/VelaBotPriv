@@ -29,7 +29,7 @@ module.exports.run = async function ({ api, event, args }) {
   const targetName = mentions[targetID].replace("@", "");
 
   const msg = await api.sendMessage(
-    `🗳️ Głosowanie rozpoczęte!\n👤 Cel: ${targetName}\n✅ Potrzebne głosy: ${voteCount}\n⏱️ Czas: 2 minuty\n\nReaguj na tę wiadomość, aby oddać głos.`,
+    `🗳️ Głosowanie o wyrzucenie rozpoczęte!\n👤 Cel: ${targetName}\n✅ Potrzebne głosy: ${voteCount}\n⏱️ Czas: 2 minuty\n\nZareaguj na tę wiadomość, aby oddać głos.`,
     threadID
   );
 
