@@ -4,10 +4,10 @@ const path = require("path");
 
 module.exports.config = {
   name: "resend",
-  version: "2.0.0",
+  version: "2.1.0",
   hasPermssion: 2,
-  credits: "Zmienione przez January",
-  description: "🔁 Automatycznie pokazuje usuniętą wiadomość lub załącznik",
+  credits: "Zmienione przez January, ulepszone przez ChatGPT",
+  description: "🔁 Pokazuje usuniętą wiadomość lub załącznik",
   commandCategory: "narzędzia",
   usages: "",
   cooldowns: 0,
@@ -22,10 +22,10 @@ module.exports.config = {
 module.exports.handleEvent = async function ({ event, api, Users }) {
   try {
     const { messageID, senderID, threadID, body, attachments, type } = event;
-    const botID = global.data.botID || (global.data.botID = api.getCurrentUserID());
 
+    const botID = global.data.botID || (global.data.botID = api.getCurrentUserID());
     if (module.exports.config.ignoredUsers.includes(String(senderID))) return;
-    if (senderID == botID || global.config.ADMINBOT?.includes(senderID)) return;
+    if (senderID === botID || global.config.ADMINBOT?.includes(senderID)) return;
 
     if (!global.logMessage) global.logMessage = new Map();
 
@@ -39,13 +39,19 @@ module.exports.handleEvent = async function ({ event, api, Users }) {
       if (!oldMsg) return;
 
       const senderName = await Users.getNameUser(senderID);
+      const messageText = oldMsg.msgBody || "brak treści";
 
+      // Bez załączników
       if (!oldMsg.attachment || oldMsg.attachment.length === 0) {
-        return api.sendMessage(`${senderName} usunął wiadomość:\n\n🗨️ Treść: ${oldMsg.msgBody || "brak treści"}`, threadID);
+        return api.sendMessage(
+          `❌ ${senderName} usunął wiadomość:\n\n🗨️ ${messageText}`,
+          threadID
+        );
       }
 
+      // Z załącznikami
       const messageData = {
-        body: `${senderName} usunął ${oldMsg.attachment.length} załącznik(i).` + (oldMsg.msgBody ? `\n\n🗨️ Treść: ${oldMsg.msgBody}` : ""),
+        body: `❌ ${senderName} usunął ${oldMsg.attachment.length} załącznik(i).` + (oldMsg.msgBody ? `\n\n🗨️ Treść: ${messageText}` : ""),
         attachment: [],
         mentions: [{
           tag: senderName,
@@ -56,17 +62,31 @@ module.exports.handleEvent = async function ({ event, api, Users }) {
       let count = 0;
       for (const att of oldMsg.attachment) {
         count++;
-        const ext = att.url.split(".").pop().split("?")[0];
-        const filePath = path.join(__dirname, `/cache/resend_${count}.${ext}`);
-        const fileData = (await axios.get(att.url, { responseType: "arraybuffer" })).data;
-        await fs.writeFile(filePath, fileData);
-        messageData.attachment.push(fs.createReadStream(filePath));
+        try {
+          const url = new URL(att.url);
+          const ext = path.extname(url.pathname) || ".bin";
+          const filePath = path.join(__dirname, `/cache/resend_${count}${ext}`);
+          const fileData = (await axios.get(att.url, { responseType: "arraybuffer" })).data;
+
+          await fs.writeFile(filePath, fileData);
+          messageData.attachment.push(fs.createReadStream(filePath));
+        } catch (err) {
+          console.error(`❗ Błąd pobierania załącznika #${count}:`, err);
+        }
       }
 
-      return api.sendMessage(messageData, threadID);
+      return api.sendMessage(messageData, threadID, () => {
+        // Czyszczenie cache po wysłaniu
+        for (let i = 1; i <= count; i++) {
+          const files = fs.readdirSync(path.join(__dirname, `/cache`));
+          files.filter(f => f.startsWith(`resend_${i}`)).forEach(f => {
+            fs.unlink(path.join(__dirname, `/cache`, f), () => {});
+          });
+        }
+      });
     }
   } catch (e) {
-    console.error("Błąd w resend handleEvent:", e);
+    console.error("❗ Błąd w resend handleEvent:", e);
   }
 };
 
