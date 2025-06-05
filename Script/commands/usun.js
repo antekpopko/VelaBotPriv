@@ -2,10 +2,10 @@ module.exports.config = {
   name: "usun",
   version: "1.0.1",
   hasPermssion: 2,
-  credits: "𝐂𝐘𝐁𝐄𝐑 ☢️_𖣘 -𝐁𝐎𝐓 ⚠️ 𝑻𝑬𝑨𝑴_ ☢️",
-  description: "Usuwa wiadomość bota",
-  commandCategory: "system",
-  usages: "unsend",
+  credits: "CYBER BOT TEAM",
+  description: "Usuwa wiadomość wysłaną przez bota",
+  commandCategory: "🛠️ System",
+  usages: "usun (odpowiedz na wiadomość bota)",
   cooldowns: 0,
 };
 
@@ -19,17 +19,23 @@ module.exports.languages = {
     missingReply: "Please reply to the bot's message you want to unsend.",
   },
   pl: {
-    returnCant: "Nie można usunąć czyjejś wiadomości.",
-    missingReply: "Odpowiedz na wiadomość bota, którą chcesz usunąć.",
+    returnCant: "❌ Nie można usunąć wiadomości, której bot nie napisał.",
+    missingReply: "ℹ️ Odpowiedz na wiadomość bota, którą chcesz usunąć.",
   },
 };
 
 module.exports.run = async function({ api, event, getText }) {
+  // Sprawdź, czy użytkownik odpowiedział na wiadomość
   if (event.type !== "message_reply") {
     return api.sendMessage(getText("missingReply"), event.threadID, event.messageID);
   }
-  if (event.messageReply.senderID !== api.getCurrentUserID()) {
+
+  // Sprawdź, czy wiadomość została wysłana przez bota
+  const botID = api.getCurrentUserID();
+  if (event.messageReply.senderID !== botID) {
     return api.sendMessage(getText("returnCant"), event.threadID, event.messageID);
   }
-  await api.unsendMessage(event.messageReply.messageID);
+
+  // Usuń wiadomość
+  return api.unsendMessage(event.messageReply.messageID);
 };
