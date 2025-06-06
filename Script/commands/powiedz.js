@@ -3,7 +3,7 @@ const fs = require("fs-extra");
 const path = require("path");
 
 module.exports.config = {
-  name: "say",
+  name: "powiedz",
   version: "1.0.2",
   hasPermssion: 0,
   credits: "CYBER BOT TEAM + poprawki: January Sakiewka",
