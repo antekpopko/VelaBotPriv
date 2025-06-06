@@ -4,7 +4,7 @@ const path = require("path");
 
 module.exports.config = {
   name: "powiedz",
-  version: "1.1.1",
+  version: "1.1.2",
   hasPermssion: 0,
   credits: "CYBER BOT TEAM + poprawki: January Sakiewka",
   description: "Bot odtwarza podany tekst jako dźwięk (Google TTS)",
@@ -13,7 +13,7 @@ module.exports.config = {
   cooldowns: 5
 };
 
-// Pomocnicza funkcja pobierania pliku z Google TTS
+// Pomocnicza funkcja do pobierania pliku z Google TTS
 async function downloadFile(url, filePath) {
   const response = await axios({
     method: "GET",
@@ -23,6 +23,7 @@ async function downloadFile(url, filePath) {
       "User-Agent": "Mozilla/5.0" // wymagane przez Google
     }
   });
+
   return new Promise((resolve, reject) => {
     const writer = fs.createWriteStream(filePath);
     response.data.pipe(writer);
@@ -34,11 +35,13 @@ async function downloadFile(url, filePath) {
 module.exports.run = async function ({ api, event, args }) {
   const supportedLangs = ["pl", "en", "ru", "pr", "ja", "tl", "bn"];
   let input = (event.type === "message_reply") ? event.messageReply.body : args.join(" ");
-  if (!input) return api.sendMessage("❌ Podaj tekst do odczytania. Możesz też użyć np. `pl Witaj świecie`.", event.threadID, event.messageID);
+
+  if (!input) {
+    return api.sendMessage("❌ Podaj tekst do odczytania. Możesz też użyć np. `pl Witaj świecie`.", event.threadID, event.messageID);
+  }
 
   let language = "pl";
   let message = input.trim();
-
   const words = input.split(" ");
   const firstWord = words[0].toLowerCase();
 
@@ -58,13 +61,17 @@ module.exports.run = async function ({ api, event, args }) {
     const filePath = path.resolve(cacheDir, `${event.threadID}_${event.senderID}.mp3`);
     const ttsURL = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(message)}&tl=${language}&client=tw-ob`;
 
+    console.log("TTS URL:", ttsURL);
+
     await downloadFile(ttsURL, filePath);
 
     if (!fs.existsSync(filePath)) {
       return api.sendMessage("❌ Nie udało się pobrać pliku dźwiękowego.", event.threadID, event.messageID);
     }
 
-    try { await api.setMessageReaction("🔊", event.messageID, () => {}, true); } catch {}
+    try {
+      await api.setMessageReaction("🔊", event.messageID, () => {}, true);
+    } catch {}
 
     return api.sendMessage({
       body: `✅ Odczytuję w języku: ${language.toUpperCase()}\n🗣️ Treść: ${message}`,
@@ -72,7 +79,7 @@ module.exports.run = async function ({ api, event, args }) {
     }, event.threadID, () => fs.unlinkSync(filePath), event.messageID);
 
   } catch (err) {
-    console.error("Błąd przy generowaniu TTS:", err);
+    console.error("❌ Błąd przy generowaniu TTS:", err);
     return api.sendMessage("❌ Wystąpił błąd podczas generowania dźwięku.", event.threadID, event.messageID);
   }
 };
