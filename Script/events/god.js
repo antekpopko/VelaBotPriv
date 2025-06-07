@@ -1,7 +1,7 @@
 module.exports.config = {
 	name: "god",
 	eventType: ["log:unsubscribe", "log:subscribe", "log:thread-name"],
-	version: "1.0.1",
+	version: "1.0.2",
 	credits: "CYBER ☢️ TEAM + poprawki: January",
 	description: "Rejestruje aktywności bota w grupach",
 	envConfig: {
