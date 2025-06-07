@@ -24,7 +24,7 @@ module.exports.run = async function ({ api, event }) {
       ]
     }, {
       headers: {
-        Authorization: `Bearer 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`,
+        Authorization: `Bearer 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`,
         "Content-Type": "application/json"
       }
     });
