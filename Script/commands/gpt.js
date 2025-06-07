@@ -1,103 +1,86 @@
 const axios = require("axios");
-const tracker = {};
 
 module.exports.config = {
   name: "gpt",
-  version: "2.0",
+  version: "1.0.0",
   hasPermssion: 2,
-  credits: "rehat--",
-  description: "Chat GPT 3.5 Turbo",
+  credits: "cwel + OpenRouter",
+  description: "Rozmawiaj z GPT-3.5 Turbo",
   commandCategory: "ai",
-  usages: "<query>",
-  cooldowns: 5,
+  usages: "[zapytanie]",
+  cooldowns: 2
 };
 
-module.exports.run = async function ({ api, event, args, usersData }) {
+module.exports.run = async ({ api, event, args }) => {
   const { threadID, messageID, senderID } = event;
+  const input = args.join(" ");
 
-  if (!args.length) return api.sendMessage("❗ Proszę wpisz zapytanie.", threadID, messageID);
-
-  if (args[0].toLowerCase() === "clear") {
-    if (tracker[senderID]) {
-      delete tracker[senderID];
-      return api.sendMessage("✅ Historia konwersacji została wyczyszczona.", threadID, messageID);
-    } else {
-      return api.sendMessage("❌ Nie znaleziono historii do wyczyszczenia.", threadID, messageID);
-    }
+  if (!input) {
+    return api.sendMessage("❗ Podaj zapytanie, np:\n/gpt jak działa czarna dziura?", threadID, messageID);
   }
 
-  const prompt = args.join(" ");
-  const userName = await usersData.getName(senderID) || "User";
-
-  if (!tracker[senderID]) tracker[senderID] = `${userName}.\n`;
-  tracker[senderID] += `${prompt}.\n`;
-
-  // Reakcja '⏳' - niestety api.sendMessage nie ma metody reaction w tym formacie,
-  // można ją pominąć lub użyć api.setMessageReaction jeśli masz w systemie
-  // Przykład (jeśli jest obsługa):
-  // await api.setMessageReaction("⏳", messageID, threadID, true);
-
   try {
-    const url = `https://public-apis-project86.vercel.app/api/chat?query=${encodeURIComponent(`- Current prompt: ${prompt}\n\n - Conversation:\n${tracker[senderID]}`)}`;
+    api.sendMessage("⏳ Przetwarzam zapytanie...", threadID, messageID);
 
-    const response = await axios.post(url, {}, {
+    const res = await axios.post("https://openrouter.ai/api/chat", {
+      model: "openai/gpt-3.5-turbo",
+      messages: [
+        {
+          role: "user",
+          content: input
+        }
+      ]
+    }, {
       headers: {
-        "Content-Type": "application/json",
-      },
+        "Authorization": "Bearer DEMO", // OpenRouter demo token
+        "Content-Type": "application/json"
+      }
     });
 
-    const resultText = response.data.answer || "Brak odpowiedzi od API.";
-    tracker[senderID] += `${resultText}\n`;
+    const reply = res.data.choices[0].message.content;
 
-    api.sendMessage(`${resultText}\n\nMożesz odpisać, aby kontynuować rozmowę.`, threadID, (error, info) => {
-      if (!error) {
-        global.client.handleReply.set(info.messageID, {
-          commandName: "gpt",
-          author: senderID,
-        });
-      }
+    api.sendMessage(reply, threadID, (err, info) => {
+      global.client.handleReply.set(info.messageID, {
+        name: module.exports.config.name,
+        author: senderID
+      });
     }, messageID);
-  } catch (error) {
-    console.error(error);
-    api.sendMessage("❌ Wystąpił błąd podczas komunikacji z API.", threadID, messageID);
+
+  } catch (err) {
+    console.error("❌ Błąd GPT:", err.message);
+    return api.sendMessage("❌ Wystąpił błąd podczas przetwarzania zapytania GPT.", threadID, messageID);
   }
 };
 
-module.exports.handleReply = async function ({ api, event, args, usersData, Reply }) {
-  const { senderID, threadID, messageID } = event;
+module.exports.handleReply = async ({ api, event, handleReply }) => {
+  const { threadID, messageID, senderID, body } = event;
 
-  if (Reply.author !== senderID) return;
-
-  if (!args.length) return api.sendMessage("❗ Proszę wpisz zapytanie.", threadID, messageID);
-
-  const prompt = args.join(" ");
-  const userName = await usersData.getName(senderID) || "User";
-
-  if (!tracker[senderID]) tracker[senderID] = `${userName}.\n`;
-  tracker[senderID] += `${prompt}.\n`;
+  if (handleReply.author !== senderID) return;
 
   try {
-    const url = `https://public-apis-project86.vercel.app/api/chat?query=${encodeURIComponent(`- Current prompt: ${prompt}\n\n - Conversation:\n${tracker[senderID]}`)}`;
-
-    const response = await axios.post(url, {}, {
+    const res = await axios.post("https://openrouter.ai/api/chat", {
+      model: "openai/gpt-3.5-turbo",
+      messages: [
+        { role: "user", content: body }
+      ]
+    }, {
       headers: {
-        "Content-Type": "application/json",
-      },
+        "Authorization": "Bearer DEMO",
+        "Content-Type": "application/json"
+      }
     });
 
-    const resultText = response.data.answer || "Brak odpowiedzi od API.";
-    tracker[senderID] += `${resultText}\n`;
+    const reply = res.data.choices[0].message.content;
 
-    api.sendMessage(`${resultText}\n\nMożesz odpisać, aby kontynuować rozmowę.`, threadID, (error, info) => {
-      if (!error) {
-        global.client.handleReply.set(info.messageID, {
-          commandName: "gpt",
-          author: senderID,
-        });
-      }
+    api.sendMessage(reply, threadID, (err, info) => {
+      global.client.handleReply.set(info.messageID, {
+        name: module.exports.config.name,
+        author: senderID
+      });
     }, messageID);
-  } catch (error) {
-    console.error(error);
-    api.sendMessage("❌ Wystąpił błąd podczas komunikacji z API.", threadID, messageID);
+
+  } catch (err) {
+    console.error("❌ Błąd GPT:", err.message);
+    return api.sendMessage("❌ Nie udało się uzyskać odpowiedzi od GPT.", threadID, messageID);
   }
 };
