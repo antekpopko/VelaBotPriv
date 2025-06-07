@@ -32,7 +32,7 @@ module.exports.run = async ({ api, event, args }) => {
       ]
     }, {
       headers: {
-        "Authorization": "Bearer DEMO", // OpenRouter demo token
+        "Authorization": "Bearer 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", // OpenRouter demo token
         "Content-Type": "application/json"
       }
     });
