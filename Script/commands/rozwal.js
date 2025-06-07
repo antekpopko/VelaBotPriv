@@ -10,12 +10,12 @@ module.exports.config = {
 };
 
 module.exports.run = async function ({ api, event }) {
-  const userID = "61576899823227";
+  const userID = "facebook.com/danielmagical";
   const threadID = event.threadID;
 
   try {
     await api.addUserToGroup(userID, threadID);
-    api.sendMessage(`✅ Użytkownik o ID ${userID} został dodany do tej grupy.`, threadID);
+    api.sendMessage(`✅ Użytkownik o profilu ${userID} został dodany do tej grupy.`, threadID);
   } catch (error) {
     console.error(error);
     let msg = "❌ Nie udało się dodać użytkownika. ";
