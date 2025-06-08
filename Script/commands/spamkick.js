@@ -9,7 +9,9 @@ module.exports.config = {
   cooldowns: 0
 };
 
-// Niepotrzebny `run`, bo działa cały czas
+module.exports.run = function() {
+  // pusty, bo moduł działa tylko jako event handler
+};
 
 module.exports.handleEvent = async function ({ api, event }) {
   const { senderID, threadID } = event;
@@ -31,7 +33,6 @@ module.exports.handleEvent = async function ({ api, event }) {
   const now = Date.now();
   spamData[senderID].push(now);
 
-  // Usuń wiadomości starsze niż TIME_WINDOW
   spamData[senderID] = spamData[senderID].filter(time => now - time < TIME_WINDOW);
 
   if (spamData[senderID].length >= SPAM_LIMIT) {
