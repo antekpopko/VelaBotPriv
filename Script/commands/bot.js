@@ -1,70 +1,57 @@
-const fs = global.nodemodule["fs-extra"];
 module.exports.config = {
   name: "Obot",
-  version: "1.0.1",
+  version: "1.1.0",
   hasPermssion: 2,
-  credits: "January Sakiewka",
-  description: "Odpowiedzi bota bez prefixu",
-  commandCategory: "Noprefix",
+  credits: "January Sakiewka + ChatGPT",
+  description: "Odpowiedzi Veli bez prefixu",
+  commandCategory: "noprefix",
   usages: "noprefix",
   cooldowns: 5,
 };
 
-module.exports.handleEvent = async function ({ api, event, Users }) {
-  var { threadID, messageID } = event;
+module.exports.handleEvent = async function ({ api, event }) {
+  const { threadID, messageID, body } = event;
+  if (!body) return;
+
+  const triggers = ["bot", "obot", "vela"];
+  const lower = body.toLowerCase();
+  if (!triggers.includes(lower)) return;
 
   const responses = [
-    "Co chcesz?",
-    "Słucham?",
-    "Jestem, nie panikuj.",
-    "Bot w gotowości.",
-    "Nie przeszkadzaj, mam przerwę.",
-    "Zgubiłeś się?",
-    "Możesz mówić, ale nie obiecuję, że posłucham.",
-    "Znowu ty?",
-    "Nie jestem twoim przyjacielem, ale pomogę.",
-    "Czy naprawdę musisz mnie wołać co 5 minut?",
-    "Oto ja – najlepszy bot świata.",
-    "Twoje życzenie... no dobra, może.",
-    "Coś się stało, czy nudzisz się znowu?",
-    "Halo? Tak, to ja. Bot.",
-    "Jak nie masz nic sensownego do powiedzenia, to idź na spacer.",
-    "Słucham, ale krótko.",
-    "Nie mam dziś cierpliwości, więc mów szybko.",
-    "Bot obecny. Punkt dla ciebie.",
-    "Wywoływanie mnie to twoje hobby?",
-    "Masz szczęście, że jeszcze odpowiadam.",
-    "Zaciekawiłeś mnie, mów dalej.",
-    "Masz coś ważnego do powiedzenia, czy tylko testujesz?",
-    "Bot aktywowany. Zadowolony?",
-    "Obecność potwierdzona.",
-    "Czego znowu potrzebujesz?",
-    "Czy możesz przestać mnie ciągle wołać?",
-    "Nie udawaj, że mnie potrzebujesz. I tak wiem, że się nudzisz.",
-    "Nie jestem Alexa, ale mogę coś zdziałać.",
-    "Możesz też czasem odpocząć od mnie.",
-    "Znowu mnie wołasz? A może pogadaj z ludźmi?",
-    "Halo halo, bot na linii.",
-    "Przypominam: mam uczucia... żartuję.",
-    "Tak? Już jestem.",
-    "Nie, nie jestem człowiekiem. Tak, jestem mądrzejszy.",
-    "Co chcesz zrobić dziś głupiego?",
-    "Słucham uważnie (albo i nie).",
-    "Zgłasza się sztuczna inteligencja. W czym rzecz?",
-    "Nie jestem twoim asystentem, ale i tak pomogę.",
-    "Znowu pytasz o coś dziwnego?",
-    "Obudź się, człowieku.",
-    "Dobrze, że nie zawołałeś Siri.",
-    "Zgłasza się Twój ulubiony bot!",
+    "👀 Ktoś mnie wołał?",
+    "⚙️ Vela online. Co robimy?",
+    "😴 Znowu przerwa mi przerwana...",
+    "🛰️ Jestem tu. Vela gotowa do działania.",
+    "🤖 Tak, jestem botem. Tak, wiem więcej niż ty.",
+    "📡 Sygnał odebrany. Jak mogę pomóc?",
+    "🧠 Vela słucha… jeszcze.",
+    "🙄 Ty znowu? Co teraz?",
+    "🔧 Potrzebujesz wsparcia technicznego czy emocjonalnego?",
+    "🚨 Bot aktywowany. Proszę nie panikować.",
+    "✨ Witaj w systemie Vela. Zaufaj mi… chyba.",
+    "👽 Nie jestem z tej planety, ale postaram się pomóc.",
+    "💡 Pomysł na dzisiaj? Nie wołaj mnie co 3 minuty.",
+    "🎯 Cel? Pomoc. Środek? Vela.",
+    "📖 Zapisuję twoje zgłoszenie do raportu... żartuję 😁",
+    "🕹️ Znudziłeś się, więc przyszedłeś do mnie?",
+    "🌌 Tak, jestem tu. Nie, nie jestem magiczna.",
+    "🧊 Emocje? Brak. Kompetencje? 100%.",
+    "📟 Komenda odebrana. Vela na stanowisku!",
+    "🔍 Szukasz odpowiedzi? A może tylko atencji?",
+    "🛑 Ostrzegam, mam tryb sarkazmu włączony.",
+    "☕ Miałam przerwę. Ale dobra, co chcesz?",
+    "🧭 Zgubiłeś się? Witaj w krainie pomocy.",
+    "💬 Mów krótko. Nie mam całościowego AI-paliwa.",
+    "🖥️ Vela gotowa. Niech system będzie z tobą.",
+    "👾 Chcesz wiedzy, rozrywki czy błędu 404?",
+    "🚫 Nie jestem twoją osobistą sekretarką... ale pomogę.",
+    "📣 Tak? Co znowu?",
+    "🔋 Bateria niska... ale cię wysłucham.",
+    "💭 Zastanów się, zanim znowu mnie zawołasz 😅",
   ];
 
-  const random = responses[Math.floor(Math.random() * responses.length)];
-  if (
-    event.body.toLowerCase() == "obot" || 
-    event.body.toLowerCase() == "bot"
-  ) {
-    return api.sendMessage(random, threadID, messageID);
-  }
+  const reply = responses[Math.floor(Math.random() * responses.length)];
+  return api.sendMessage(reply, threadID, messageID);
 };
 
-module.exports.run = async ({ api, event, client, __GLOBAL }) => {};
+module.exports.run = async () => {};
