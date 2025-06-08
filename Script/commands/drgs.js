@@ -2,18 +2,14 @@ const axios = require("axios");
 
 module.exports.config = {
   name: "drgs",
-  version: "1.5",
+  version: "2.0",
   hasPermssion: 2,
   credits: "January Sakiewka + ChatGPT",
-  description: "Info o substancjach psychoaktywnych tylko z PsychonautWiki",
+  description: "Wyświetla szczegółowe informacje o substancjach psychoaktywnych z PsychonautWiki i Wikipedii.",
   commandCategory: "edukacja",
   usages: "[nazwa substancji]",
   cooldowns: 3
 };
-
-const axiosInstance = axios.create({
-  timeout: 15000
-});
 
 const emojiMap = {
   stimulant: "⚡",
@@ -27,9 +23,10 @@ const emojiMap = {
   other: "❓"
 };
 
-function shortenText(text, maxLength = 500) {
-  if (text.length <= maxLength) return text;
-  return text.slice(0, maxLength) + "...";
+const axiosInstance = axios.create({ timeout: 10000 });
+
+function capitalize(text) {
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 async function translateToPL(text) {
@@ -46,78 +43,161 @@ async function translateToPL(text) {
       }
     });
     return res.data.translatedText;
-  } catch (e) {
-    console.warn("Błąd tłumaczenia:", e.message);
+  } catch {
     return text;
   }
 }
 
-async function getPsychonautSummary(query) {
-  const baseURL = "https://psychonautwiki.org/api/rest_v1/page/summary/";
-
-  function normalizeName(name) {
-    return name
-      .toLowerCase()
-      .replace(/,/g, "")
-      .replace(/\s+/g, "-")
-      .replace(/[^a-z0-9\-]/g, "");
-  }
-
-  const normalized = normalizeName(query);
+async function getPsychonautData(query) {
+  const graphQLEndpoint = "https://psychonautwiki.org/graphql";
+  const queryString = `
+  query {
+    substance(name: "${query}") {
+      name
+      url
+      class {
+        chemical
+        psychoactive
+      }
+      dosage {
+        oral {
+          units threshold heavy commonLight commonHeavy commonMedium
+        }
+      }
+      duration {
+        total {
+          min max units
+        }
+      }
+      bioavailability
+      crossTolerances
+      toxicity
+      effects {
+        subjective
+        cognitive
+        visual
+        physical
+        auditory
+      }
+      routesOfAdministration
+      commonNames
+      summary
+    }
+  }`;
 
   try {
-    const url = baseURL + encodeURIComponent(normalized);
+    const res = await axiosInstance.post(graphQLEndpoint, { query: queryString });
+    return res.data.data.substance || null;
+  } catch {
+    return null;
+  }
+}
+
+async function getWikiSummary(query, lang = 'pl') {
+  const url = `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`;
+  try {
     const res = await axiosInstance.get(url);
-    if (res.data && res.data.extract) {
+    if (res.data.extract) {
       return {
         title: res.data.title,
         extract: res.data.extract,
-        url: `https://psychonautwiki.org/wiki/${encodeURIComponent(normalized)}`,
-        drugClass: res.data.infobox?.drug_class ? (Array.isArray(res.data.infobox.drug_class) ? res.data.infobox.drug_class[0].toLowerCase() : res.data.infobox.drug_class.toLowerCase()) : null,
-        infobox: res.data.infobox || {}
+        url: res.data.content_urls?.desktop?.page
       };
     }
-  } catch (err) {
+  } catch {
     return null;
   }
-  return null;
 }
 
 module.exports.run = async function({ api, event, args }) {
   if (!args[0]) {
-    return api.sendMessage("ℹ️ Podaj nazwę substancji, np. `/drgs ketamine`.", event.threadID, event.messageID);
+    return api.sendMessage("🔍 Podaj nazwę substancji, np. `/drgs ketamine`.", event.threadID, event.messageID);
   }
 
-  const query = args.join(" ");
-  const psycho = await getPsychonautSummary(query);
+  const name = args.join(" ");
+  let resultMsg = "";
 
-  if (!psycho) {
-    return api.sendMessage("❌ Nie znaleziono informacji o tej substancji w PsychonautWiki.", event.threadID, event.messageID);
+  let substance = await getPsychonautData(name);
+  if (!substance) {
+    const altName = name.toLowerCase().replace(/\s+/g, "-");
+    substance = await getPsychonautData(altName);
   }
 
-  const translatedPsycho = await translateToPL(psycho.extract);
+  if (substance) {
+    const emoji = substance.class?.psychoactive?.[0]?.toLowerCase() && emojiMap[substance.class.psychoactive[0].toLowerCase()] || "🌐";
 
-  let emoji = emojiMap.other;
-  if (psycho.drugClass && typeof psycho.drugClass === "string") {
-    for (const [key, emojiVal] of Object.entries(emojiMap)) {
-      if (psycho.drugClass.includes(key)) {
-        emoji = emojiVal;
-        break;
+    resultMsg += `${emoji} *${substance.name} (PsychonautWiki)*\n`;
+
+    if (substance.summary) {
+      const translated = await translateToPL(substance.summary);
+      resultMsg += `${translated}\n\n`;
+    }
+
+    const details = [];
+
+    if (substance.commonNames?.length) {
+      details.push(`📛 Nazwy potoczne: ${substance.commonNames.join(", ")}`);
+    }
+    if (substance.routesOfAdministration?.length) {
+      details.push(`💉 Drogi podania: ${substance.routesOfAdministration.join(", ")}`);
+    }
+
+    const oral = substance.dosage?.oral;
+    if (oral) {
+      const doseStr = [
+        oral.threshold && `Próg: ${oral.threshold} ${oral.units}`,
+        oral.commonLight && `Lekka: ${oral.commonLight} ${oral.units}`,
+        oral.commonMedium && `Średnia: ${oral.commonMedium} ${oral.units}`,
+        oral.commonHeavy && `Ciężka: ${oral.commonHeavy} ${oral.units}`,
+        oral.heavy && `Bardzo ciężka: ${oral.heavy} ${oral.units}`
+      ].filter(Boolean).join(", ");
+      details.push(`🧪 Dawkowanie (doustnie): ${doseStr}`);
+    }
+
+    const duration = substance.duration?.total;
+    if (duration?.min && duration?.max) {
+      details.push(`⏳ Czas działania: ${duration.min}-${duration.max} ${duration.units}`);
+    }
+
+    if (substance.bioavailability) {
+      details.push(`📈 Biodostępność: ${substance.bioavailability}`);
+    }
+
+    if (substance.crossTolerances?.length) {
+      details.push(`⚠️ Krzyżowa tolerancja: ${substance.crossTolerances.join(", ")}`);
+    }
+
+    if (substance.toxicity) {
+      details.push(`☠️ Toksyczność: ${substance.toxicity}`);
+    }
+
+    if (substance.effects) {
+      const effectsText = Object.entries(substance.effects)
+        .map(([k, v]) => v && v.length ? `• ${capitalize(k)}: ${v.join(", ")}` : null)
+        .filter(Boolean)
+        .join("\n");
+      if (effectsText) {
+        details.push(`🎯 Efekty:\n${effectsText}`);
       }
     }
+
+    resultMsg += `${details.join("\n")}\n🔗 ${substance.url}`;
+    return api.sendMessage(resultMsg, event.threadID, event.messageID);
   }
 
-  const ib = psycho.infobox;
-  let infoDetails = [];
-  if (ib.common_names) infoDetails.push(`📛 Nazwy potoczne: ${Array.isArray(ib.common_names) ? ib.common_names.join(", ") : ib.common_names}`);
-  if (ib.routes_of_administration) infoDetails.push(`💉 Drogi podania: ${Array.isArray(ib.routes_of_administration) ? ib.routes_of_administration.join(", ") : ib.routes_of_administration}`);
-  if (ib.dosage) infoDetails.push(`🧪 Dawkowanie: ${typeof ib.dosage === "string" ? ib.dosage : JSON.stringify(ib.dosage)}`);
-  if (ib.duration && ib.duration.total) infoDetails.push(`⏳ Czas działania: ${ib.duration.total}`);
-  if (ib.toxicity) infoDetails.push(`☠️ Toksyczność: ${ib.toxicity}`);
-  if (ib.cross_tolerance) infoDetails.push(`⚠️ Krzyżowa tolerancja: ${ib.cross_tolerance}`);
-  if (ib.bioavailability) infoDetails.push(`📈 Biodostępność: ${ib.bioavailability}`);
+  // jeśli nie znaleziono w PsychonautWiki
+  const plWiki = await getWikiSummary(name, "pl");
+  if (plWiki) {
+    resultMsg += `🇵🇱 *${plWiki.title} (Wikipedia PL)*\n${plWiki.extract}\n🔗 ${plWiki.url}`;
+    return api.sendMessage(resultMsg, event.threadID, event.messageID);
+  }
 
-  const msg = `${emoji} *${psycho.title} (PsychonautWiki)*\n${shortenText(translatedPsycho)}\n\n${infoDetails.join("\n")}\n🔗 ${psycho.url}`;
+  const enWiki = await getWikiSummary(name, "en");
+  if (enWiki) {
+    const translated = await translateToPL(enWiki.extract);
+    resultMsg += `🇬🇧 *${enWiki.title} (Wikipedia EN)*\n${translated}\n🔗 ${enWiki.url}`;
+    return api.sendMessage(resultMsg, event.threadID, event.messageID);
+  }
 
-  return api.sendMessage(msg, event.threadID, event.messageID);
+  return api.sendMessage("❌ Nie znaleziono informacji o tej substancji w dostępnych źródłach.", event.threadID, event.messageID);
 };
