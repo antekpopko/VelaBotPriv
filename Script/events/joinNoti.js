@@ -4,8 +4,8 @@ const path = require("path");
 module.exports.config = {
   name: "joinNoti",
   eventType: ["log:subscribe"],
-  version: "2.0.0",
-  credits: "CYBER BOT TEAM (skrócona wersja: January)",
+  version: "2.1.0",
+  credits: "CYBER BOT TEAM (poprawki: January)",
   description: "Proste powitanie z gifem (PL)",
 };
 
@@ -35,7 +35,13 @@ module.exports.run = async function ({ api, event }) {
 
     for (const p of participants) {
       const user = userInfo[p.userFbId];
-      const name = (user && user.name && user.name !== "Facebook User") ? user.name : (p.fullName || "użytkowniku");
+      const name =
+        user?.name && user.name !== "Facebook User"
+          ? user.name
+          : (p.fullName && !p.fullName.includes("Facebook User"))
+            ? p.fullName
+            : "użytkowniku";
+
       names.push(name);
       mentions.push({ tag: name, id: p.userFbId });
     }
@@ -54,8 +60,8 @@ module.exports.run = async function ({ api, event }) {
 
     const formPush = { body: msg, mentions };
 
-    // 30% szansy na dołączenie GIF-a
-    if (gifFiles.length > 0 && Math.random() < 0.3) {
+    // 15% szansy na dodanie GIF-a
+    if (gifFiles.length > 0 && Math.random() < 0.15) {
       const selected = gifFiles[Math.floor(Math.random() * gifFiles.length)];
       formPush.attachment = fs.createReadStream(path.join(gifDir, selected));
     }
