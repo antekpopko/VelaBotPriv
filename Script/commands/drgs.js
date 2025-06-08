@@ -12,7 +12,7 @@ module.exports.config = {
 };
 
 const axiosInstance = axios.create({
-  timeout: 7000
+  timeout: 15000 // 15 sekund na timeout, bo tłumaczenie czasem trwa dłużej
 });
 
 const emojiMap = {
@@ -73,45 +73,37 @@ async function getWikiSummary(query, lang = 'pl') {
 async function getPsychonautSummary(query) {
   const baseURL = "https://psychonautwiki.org/api/rest_v1/page/summary/";
 
-  // Najpierw spróbuj z myślnikami
-  let formattedQuery = encodeURIComponent(query.toLowerCase().replace(/\s+/g, "-"));
-  try {
-    let url = baseURL + formattedQuery;
-    let res = await axiosInstance.get(url);
-    if (res.data && res.data.extract) {
-      console.log("PsychonautWiki data found (with hyphens):", res.data.title);
-      return {
-        title: res.data.title,
-        extract: res.data.extract,
-        url: `https://psychonautwiki.org/wiki/${formattedQuery}`,
-        drugClass: res.data.infobox?.drug_class ? (Array.isArray(res.data.infobox.drug_class) ? res.data.infobox.drug_class[0].toLowerCase() : res.data.infobox.drug_class.toLowerCase()) : null,
-        infobox: res.data.infobox || {}
-      };
-    }
-  } catch (err) {
-    console.log("Nie znaleziono z myślnikami:", err.response?.status || err.message);
+  // Normalizacja nazwy - usuń przecinki i inne niechciane znaki
+  function normalizeName(name) {
+    return name
+      .toLowerCase()
+      .replace(/,/g, "")          // usuń przecinki
+      .replace(/\s+/g, "-")       // spacje na myślniki
+      .replace(/[^a-z0-9\-]/g, "")// usuń znaki inne niż małe litery, cyfry i myślniki
   }
 
-  // Spróbuj z podkreśleniami
-  try {
-    let altQuery = encodeURIComponent(query.toLowerCase().replace(/\s+/g, "_"));
-    let altURL = baseURL + altQuery;
-    let res = await axiosInstance.get(altURL);
-    if (res.data && res.data.extract) {
-      console.log("PsychonautWiki data found (with underscores):", res.data.title);
-      return {
-        title: res.data.title,
-        extract: res.data.extract,
-        url: `https://psychonautwiki.org/wiki/${altQuery}`,
-        drugClass: res.data.infobox?.drug_class ? (Array.isArray(res.data.infobox.drug_class) ? res.data.infobox.drug_class[0].toLowerCase() : res.data.infobox.drug_class.toLowerCase()) : null,
-        infobox: res.data.infobox || {}
-      };
+  const normalized = normalizeName(query);
+
+  async function tryQuery(name) {
+    try {
+      const url = baseURL + encodeURIComponent(name);
+      const res = await axiosInstance.get(url);
+      if (res.data && res.data.extract) {
+        return {
+          title: res.data.title,
+          extract: res.data.extract,
+          url: `https://psychonautwiki.org/wiki/${encodeURIComponent(name)}`,
+          drugClass: res.data.infobox?.drug_class ? (Array.isArray(res.data.infobox.drug_class) ? res.data.infobox.drug_class[0].toLowerCase() : res.data.infobox.drug_class.toLowerCase()) : null,
+          infobox: res.data.infobox || {}
+        };
+      }
+    } catch (err) {
+      return null;
     }
-  } catch (err) {
-    console.log("Nie znaleziono z podkreśleniami:", err.response?.status || err.message);
   }
 
-  return null;
+  // Próbuj tylko z wersją znormalizowaną
+  return await tryQuery(normalized);
 }
 
 module.exports.run = async function({ api, event, args }) {
@@ -120,11 +112,14 @@ module.exports.run = async function({ api, event, args }) {
   }
 
   const query = args.join(" ");
-  console.log("Szukana substancja:", query);
 
   const psycho = await getPsychonautSummary(query);
-  const plWiki = await getWikiSummary(query, 'pl');
-  const enWiki = await getWikiSummary(query, 'en');
+  let plWiki = null, enWiki = null;
+
+  if (!psycho) {
+    plWiki = await getWikiSummary(query, 'pl');
+    enWiki = await getWikiSummary(query, 'en');
+  }
 
   const results = [];
 
@@ -140,7 +135,6 @@ module.exports.run = async function({ api, event, args }) {
       }
     }
 
-    // Kluczowe dane z infobox
     const ib = psycho.infobox;
     let infoDetails = [];
     if (ib.common_names) infoDetails.push(`📛 Nazwy potoczne: ${Array.isArray(ib.common_names) ? ib.common_names.join(", ") : ib.common_names}`);
@@ -152,14 +146,11 @@ module.exports.run = async function({ api, event, args }) {
     if (ib.bioavailability) infoDetails.push(`📈 Biodostępność: ${ib.bioavailability}`);
 
     results.push(`${emoji} *${psycho.title} (PsychonautWiki)*\n${shortenText(translatedPsycho)}\n\n${infoDetails.join("\n")}\n🔗 ${psycho.url}`);
-  }
-
-  // Pokazuj Wikipedię tylko, jeśli brak danych z PsychonautWiki
-  if (!psycho) {
+  } else {
     if (plWiki) {
       results.push(`🇵🇱 *${plWiki.title} (Wikipedia PL)*\n${shortenText(plWiki.extract)}\n🔗 ${plWiki.url}`);
     }
-    if (enWiki && (!plWiki || (plWiki.extract.length < 200))) {
+    if ((!plWiki || (plWiki.extract.length < 200)) && enWiki) {
       const translated = await translateToPL(enWiki.extract);
       results.push(`🇬🇧 *${enWiki.title} (Wikipedia EN)*\n${shortenText(translated)}\n🔗 ${enWiki.url}`);
     }
