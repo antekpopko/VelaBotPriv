@@ -3,7 +3,7 @@ const axios = require("axios");
 module.exports.config = {
   name: "drgs",
   version: "1.4",
-  hasPermssion: 0,
+  hasPermssion: 2,
   credits: "January Sakiewka + ChatGPT",
   description: "Wyświetla info o substancjach psychoaktywnych z PsychonautWiki i Wikipedii z tłumaczeniem i emoji.",
   commandCategory: "edukacja",
@@ -34,6 +34,7 @@ function shortenText(text, maxLength = 500) {
 }
 
 async function translateToPL(text) {
+  if (!text) return "";
   try {
     const res = await axiosInstance.post("https://libretranslate.de/translate", {
       q: text,
@@ -65,7 +66,7 @@ async function getWikiSummary(query, lang = 'pl') {
         lang
       };
     }
-  } catch {
+  } catch (e) {
     return null;
   }
   return null;
@@ -89,10 +90,39 @@ async function getPsychonautSummary(query) {
         infobox: res.data.infobox || {}
       };
     }
-  } catch {
+  } catch (e) {
     return null;
   }
   return null;
+}
+
+// Funkcja do ładnego wypisywania całego infobox, z rekurencją po zagnieżdżeniach
+function formatInfobox(obj, prefix = "") {
+  let lines = [];
+  for (const key in obj) {
+    if (!Object.hasOwnProperty.call(obj, key)) continue;
+    const val = obj[key];
+    const lineKey = prefix ? `${prefix}.${key}` : key;
+
+    if (typeof val === "object" && val !== null) {
+      // Jeśli obiekt/tablica - rekurencja
+      if (Array.isArray(val)) {
+        // Wypisz elementy tablicy, dla prostych typów bez kluczy
+        val.forEach((el, i) => {
+          if (typeof el === "object" && el !== null) {
+            lines.push(...formatInfobox(el, `${lineKey}[${i}]`));
+          } else {
+            lines.push(`${lineKey}[${i}]: ${el}`);
+          }
+        });
+      } else {
+        lines.push(...formatInfobox(val, lineKey));
+      }
+    } else {
+      lines.push(`${lineKey}: ${val}`);
+    }
+  }
+  return lines;
 }
 
 module.exports.run = async function({ api, event, args }) {
@@ -110,10 +140,10 @@ module.exports.run = async function({ api, event, args }) {
     getWikiSummary(query, 'en')
   ]);
 
-  // Sprawdzamy czy PsychonautWiki ma dane infoboxu i extract
-  const psychoHasInfo = psycho && psycho.extract && Object.keys(psycho.infobox).length > 0;
+  if (psycho) {
+    // Debug - wypisz infobox w konsoli (usuń po testach)
+    console.log("Psychonaut infobox:", JSON.stringify(psycho.infobox, null, 2));
 
-  if (psychoHasInfo) {
     const translatedPsycho = await translateToPL(psycho.extract);
     let emoji = emojiMap.other;
     if (psycho.drugClass && typeof psycho.drugClass === "string") {
@@ -125,25 +155,19 @@ module.exports.run = async function({ api, event, args }) {
       }
     }
 
-    const ib = psycho.infobox;
-    let infoDetails = [];
-    if (ib.common_names) infoDetails.push(`📛 Nazwy potoczne: ${Array.isArray(ib.common_names) ? ib.common_names.join(", ") : ib.common_names}`);
-    if (ib.routes_of_administration) infoDetails.push(`💉 Drogi podania: ${Array.isArray(ib.routes_of_administration) ? ib.routes_of_administration.join(", ") : ib.routes_of_administration}`);
-    if (ib.dosage) infoDetails.push(`🧪 Dawkowanie: ${typeof ib.dosage === "string" ? ib.dosage : JSON.stringify(ib.dosage)}`);
-    if (ib.duration && ib.duration.total) infoDetails.push(`⏳ Czas działania: ${ib.duration.total}`);
-    if (ib.toxicity) infoDetails.push(`☠️ Toksyczność: ${ib.toxicity}`);
-    if (ib.cross_tolerance) infoDetails.push(`⚠️ Krzyżowa tolerancja: ${ib.cross_tolerance}`);
-    if (ib.bioavailability) infoDetails.push(`📈 Biodostępność: ${ib.bioavailability}`);
-
-    results.push(`${emoji} *${psycho.title} (PsychonautWiki)*\n${shortenText(translatedPsycho)}\n\n${infoDetails.join("\n")}\n🔗 ${psycho.url}`);
-  } else {
-    // Gdy brak PsychonautWiki lub ma mało danych - wstaw Wikipedię
-    if (plWiki) {
-      results.push(`🇵🇱 *${plWiki.title} (Wikipedia PL)*\n${shortenText(plWiki.extract)}\n🔗 ${plWiki.url}`);
-    } else if (enWiki) {
-      const translated = await translateToPL(enWiki.extract);
-      results.push(`🇬🇧 *${enWiki.title} (Wikipedia EN)*\n${shortenText(translated)}\n🔗 ${enWiki.url}`);
+    // Sformatuj infobox na listę tekstów
+    const infoboxLines = formatInfobox(psycho.infobox);
+    let infoboxText = "";
+    if (infoboxLines.length > 0) {
+      infoboxText = "\n\n📋 Dodatkowe informacje:\n" + infoboxLines.join("\n");
     }
+
+    results.push(`${emoji} *${psycho.title} (PsychonautWiki)*\n${shortenText(translatedPsycho)}${infoboxText}\n\n🔗 ${psycho.url}`);
+  } else if (plWiki) {
+    results.push(`🇵🇱 *${plWiki.title} (Wikipedia PL)*\n${shortenText(plWiki.extract)}\n🔗 ${plWiki.url}`);
+  } else if (enWiki) {
+    const translated = await translateToPL(enWiki.extract);
+    results.push(`🇬🇧 *${enWiki.title} (Wikipedia EN)*\n${shortenText(translated)}\n🔗 ${enWiki.url}`);
   }
 
   if (results.length === 0) {
