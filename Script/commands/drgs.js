@@ -2,10 +2,10 @@ const axios = require("axios");
 
 module.exports.config = {
   name: "drgs",
-  version: "1.2",
+  version: "1.3",
   hasPermssion: 0,
   credits: "January Sakiewka + ChatGPT",
-  description: "Wyświetla info o narkotykach z Wikipedii i PsychonautWiki z tłumaczeniem i emoji.",
+  description: "Wyświetla info o substancjach psychoaktywnych z PsychonautWiki i Wikipedii z tłumaczeniem i emoji.",
   commandCategory: "edukacja",
   usages: "[nazwa substancji]",
   cooldowns: 3
@@ -84,7 +84,8 @@ async function getPsychonautSummary(query) {
         title: res.data.title,
         extract: res.data.extract,
         url: `https://psychonautwiki.org/wiki/${encodeURIComponent(query)}`,
-        drugClass
+        drugClass,
+        infobox: res.data.infobox || {}
       };
     }
   } catch (e) {
@@ -102,20 +103,11 @@ module.exports.run = async function({ api, event, args }) {
   const psychoQuery = query.toLowerCase().replace(/\s+/g, "-");
   const results = [];
 
-  const [plWiki, enWiki, psycho] = await Promise.all([
+  const [psycho, plWiki, enWiki] = await Promise.all([
+    getPsychonautSummary(psychoQuery),
     getWikiSummary(query, 'pl'),
-    getWikiSummary(query, 'en'),
-    getPsychonautSummary(psychoQuery)
+    getWikiSummary(query, 'en')
   ]);
-
-  if (plWiki) {
-    results.push(`🇵🇱 *${plWiki.title} (Wikipedia PL)*\n${shortenText(plWiki.extract)}\n🔗 ${plWiki.url}`);
-  }
-
-  if (enWiki && (!plWiki || plWiki.extract.length < 200)) {
-    const translated = await translateToPL(enWiki.extract);
-    results.push(`🇬🇧 *${enWiki.title} (Wikipedia EN)*\n${shortenText(translated)}\n🔗 ${enWiki.url}`);
-  }
 
   if (psycho) {
     const translatedPsycho = await translateToPL(psycho.extract);
@@ -128,7 +120,28 @@ module.exports.run = async function({ api, event, args }) {
         }
       }
     }
-    results.push(`${emoji} *${psycho.title} (PsychonautWiki)*\n${shortenText(translatedPsycho)}\n🔗 ${psycho.url}`);
+
+    // Kluczowe dane z infobox
+    const ib = psycho.infobox;
+    let infoDetails = [];
+    if (ib.common_names) infoDetails.push(`📛 Nazwy potoczne: ${Array.isArray(ib.common_names) ? ib.common_names.join(", ") : ib.common_names}`);
+    if (ib.routes_of_administration) infoDetails.push(`💉 Drogi podania: ${Array.isArray(ib.routes_of_administration) ? ib.routes_of_administration.join(", ") : ib.routes_of_administration}`);
+    if (ib.dosage) infoDetails.push(`🧪 Dawkowanie: ${typeof ib.dosage === "string" ? ib.dosage : JSON.stringify(ib.dosage)}`);
+    if (ib.duration && ib.duration.total) infoDetails.push(`⏳ Czas działania: ${ib.duration.total}`);
+    if (ib.toxicity) infoDetails.push(`☠️ Toksyczność: ${ib.toxicity}`);
+    if (ib.cross_tolerance) infoDetails.push(`⚠️ Krzyżowa tolerancja: ${ib.cross_tolerance}`);
+    if (ib.bioavailability) infoDetails.push(`📈 Biodostępność: ${ib.bioavailability}`);
+
+    results.push(`${emoji} *${psycho.title} (PsychonautWiki)*\n${shortenText(translatedPsycho)}\n\n${infoDetails.join("\n")}\n🔗 ${psycho.url}`);
+  }
+
+  if (plWiki && !psycho) {
+    results.push(`🇵🇱 *${plWiki.title} (Wikipedia PL)*\n${shortenText(plWiki.extract)}\n🔗 ${plWiki.url}`);
+  }
+
+  if (enWiki && (!plWiki || (plWiki.extract.length < 200 && !psycho))) {
+    const translated = await translateToPL(enWiki.extract);
+    results.push(`🇬🇧 *${enWiki.title} (Wikipedia EN)*\n${shortenText(translated)}\n🔗 ${enWiki.url}`);
   }
 
   if (results.length === 0) {
