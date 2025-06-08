@@ -2,7 +2,7 @@ const axios = require("axios");
 
 module.exports.config = {
   name: "drgs",
-  version: "3.2",
+  version: "3.3",
   hasPermssion: 0,
   credits: "January Sakiewka + ChatGPT",
   description: "PsychonautWiki GraphQL – pełne dane o substancjach",
@@ -13,56 +13,70 @@ module.exports.config = {
 
 const axiosInstance = axios.create({
   timeout: 15000,
-  headers: { "Accept": "application/json", "Content-Type": "application/json" }
+  headers: { "Content-Type": "application/json" }
 });
-
-// Emoji według klasy substancji (możesz rozbudować wg potrzeb)
-const emojiMap = {
-  stimulant: "⚡",
-  depressant: "💤",
-  psychedelic: "🌈",
-  empathogen: "💜",
-  dissociative: "🌀",
-  opioid: "💉",
-  benzodiazepine: "💊",
-  deliriant: "😵",
-  other: "❓"
-};
 
 module.exports.run = async function({ api, event, args }) {
   if (!args.length)
     return api.sendMessage("🔍 Podaj substancję, np. `/drgs mdma`.", event.threadID, event.messageID);
 
-  const q = args.join(" ");
+  const query = args.join(" ");
 
   const payload = {
     query: `
-      {
-        substances(query: "${q}") {
+    {
+      substances(query: "${query}") {
+        name
+        summary
+        roas {
           name
-          summary
-          drugClass
-          roas {
-            name
-            dose {
-              units
-              threshold
-              light { min max }
-              common { min max }
-              strong { min max }
-              heavy
-            }
-            duration {
-              onset { min max units }
-              comeup { min max units }
-              peak { min max units }
-              offset { min max units }
-              afterglow { min max units }
-              total { min max units }
-            }
+          dose {
+            units
+            threshold
+            light { min max }
+            common { min max }
+            strong { min max }
+            heavy
+          }
+          duration {
+            onset { min max units }
+            comeup { min max units }
+            peak { min max units }
+            offset { min max units }
+            afterglow { min max units }
+            total { min max units }
           }
         }
-      }`
+        positiveEffects {
+          name
+          description
+        }
+        negativeEffects {
+          name
+          description
+        }
+        neutralEffects {
+          name
+          description
+        }
+        toxicity {
+          LD50 {
+            value
+            units
+            species
+          }
+          description
+        }
+        crossTolerance {
+          name
+          description
+        }
+        metabolism {
+          name
+          description
+        }
+      }
+    }`
   };
 
   let res;
@@ -78,42 +92,70 @@ module.exports.run = async function({ api, event, args }) {
   }
 
   const s = subs[0];
-  const emoji = emojiMap[s.drugClass?.toLowerCase()] || emojiMap.other;
-
-  const lines = [`${emoji} *${s.name}*`];
+  const lines = [`*${s.name}*`];
 
   if (s.summary) {
-    // Skróć do 500 znaków, aby nie przeciążać wiadomości
-    const summary = s.summary.length > 500 ? s.summary.slice(0, 500) + "..." : s.summary;
-    lines.push(summary);
-    lines.push("");
+    lines.push(s.summary, "");
   }
 
-  if (Array.isArray(s.roas) && s.roas.length > 0) {
-    for (const roa of s.roas) {
-      const d = roa.dose || {};
-      const dg = [];
-      if (d.threshold != null) dg.push(`Próg: ${d.threshold} ${d.units}`);
-      if (d.light?.min != null) dg.push(`Lekka: ${d.light.min}-${d.light.max} ${d.units}`);
-      if (d.common?.min != null) dg.push(`Typowa: ${d.common.min}-${d.common.max} ${d.units}`);
-      if (d.strong?.min != null) dg.push(`Silna: ${d.strong.min}-${d.strong.max} ${d.units}`);
-      if (d.heavy != null) dg.push(`Bardzo ciężka: ${d.heavy} ${d.units}`);
-      if (dg.length > 0) lines.push(`🧪 Dawkowanie (${roa.name}): ${dg.join(", ")}`);
+  for (const roa of s.roas) {
+    const d = roa.dose;
+    const doses = [];
+    if (d.threshold) doses.push(`Próg: ${d.threshold} ${d.units}`);
+    if (d.light?.min != null) doses.push(`Lekka: ${d.light.min}-${d.light.max} ${d.units}`);
+    if (d.common?.min != null) doses.push(`Typowa: ${d.common.min}-${d.common.max} ${d.units}`);
+    if (d.strong?.min != null) doses.push(`Silna: ${d.strong.min}-${d.strong.max} ${d.units}`);
+    if (d.heavy) doses.push(`Bardzo ciężka: ${d.heavy} ${d.units}`);
+    lines.push(`🧪 Dawkowanie (${roa.name}): ${doses.join(", ")}`);
 
-      const dur = roa.duration || {};
-      const dd = [
-        dur.total ? `Całkowity: ${dur.total.min}-${dur.total.max} ${dur.total.units}` : null,
-        dur.onset ? `Onset: ${dur.onset.min}-${dur.onset.max} ${dur.onset.units}` : null,
-        dur.comeup ? `Comeup: ${dur.comeup.min}-${dur.comeup.max} ${dur.comeup.units}` : null,
-        dur.peak ? `Peak: ${dur.peak.min}-${dur.peak.max} ${dur.peak.units}` : null,
-        dur.offset ? `Offset: ${dur.offset.min}-${dur.offset.max} ${dur.offset.units}` : null,
-        dur.afterglow ? `Afterglow: ${dur.afterglow.min}-${dur.afterglow.max} ${dur.afterglow.units}` : null
-      ].filter(Boolean);
+    const dur = roa.duration;
+    const durations = [
+      dur.total && `Całkowity: ${dur.total.min}-${dur.total.max} ${dur.total.units}`,
+      dur.onset && `Onset: ${dur.onset.min}-${dur.onset.max} ${dur.onset.units}`,
+      dur.comeup && `Comeup: ${dur.comeup.min}-${dur.comeup.max} ${dur.comeup.units}`,
+      dur.peak && `Peak: ${dur.peak.min}-${dur.peak.max} ${dur.peak.units}`,
+      dur.offset && `Offset: ${dur.offset.min}-${dur.offset.max} ${dur.offset.units}`,
+      dur.afterglow && `Afterglow: ${dur.afterglow.min}-${dur.afterglow.max} ${dur.afterglow.units}`
+    ].filter(Boolean);
+    lines.push(`⏳ Czas działania (${roa.name}): ${durations.join(" • ")}`);
+  }
 
-      if (dd.length > 0) lines.push(`⏳ Czas działania (${roa.name}): ${dd.join(" • ")}`);
+  // Efekty
+  if (s.positiveEffects && s.positiveEffects.length) {
+    lines.push("\n✅ Pozytywne efekty:");
+    s.positiveEffects.forEach(e => lines.push(`- ${e.name}: ${e.description || "Brak opisu."}`));
+  }
+  if (s.negativeEffects && s.negativeEffects.length) {
+    lines.push("\n❌ Negatywne efekty:");
+    s.negativeEffects.forEach(e => lines.push(`- ${e.name}: ${e.description || "Brak opisu."}`));
+  }
+  if (s.neutralEffects && s.neutralEffects.length) {
+    lines.push("\n⚪ Neutralne efekty:");
+    s.neutralEffects.forEach(e => lines.push(`- ${e.name}: ${e.description || "Brak opisu."}`));
+  }
+
+  // Toksyczność
+  if (s.toxicity) {
+    if (s.toxicity.LD50) {
+      const ld = s.toxicity.LD50;
+      lines.push(`\n☠️ Toksyczność (LD50): ${ld.value} ${ld.units} (gatunek: ${ld.species || "nieznany"})`);
+    }
+    if (s.toxicity.description) {
+      lines.push(`Opis toksyczności: ${s.toxicity.description}`);
     }
   }
 
-  const msg = lines.join("\n");
-  return api.sendMessage(msg, event.threadID, event.messageID);
+  // Cross tolerance
+  if (s.crossTolerance && s.crossTolerance.length) {
+    lines.push("\n🔄 Krzyżowa tolerancja:");
+    s.crossTolerance.forEach(t => lines.push(`- ${t.name}: ${t.description || "Brak opisu."}`));
+  }
+
+  // Metabolizm
+  if (s.metabolism && s.metabolism.length) {
+    lines.push("\n⚙️ Metabolizm:");
+    s.metabolism.forEach(m => lines.push(`- ${m.name}: ${m.description || "Brak opisu."}`));
+  }
+
+  return api.sendMessage(lines.join("\n"), event.threadID, event.messageID);
 };
