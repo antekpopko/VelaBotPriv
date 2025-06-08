@@ -1,7 +1,7 @@
 module.exports.config = {
   name: "mention",
   version: "1.0.5",
-  hasPermission: 2,
+  hasPermssion: 2, // <--- zmiana na hasPermssion, jeśli taki klucz jest w innych Twoich modułach
   credits: "Przerobione przez ChatGPT na bazie CYBER TEAM",
   description: "Bot odpowiada z różnymi emocjami, gdy ktoś oznaczy admina, z emoji w wiadomościach",
   commandCategory: "inne",
@@ -10,7 +10,7 @@ module.exports.config = {
 };
 
 module.exports.handleEvent = async function ({ api, event }) {
-  const adminIDs = ["61563352322805"]; // Dodaj więcej ID adminów jeśli trzeba
+  const adminIDs = ["61563352322805"];
   const mentionedIDs = Object.keys(event.mentions || {});
 
   const botID = api.getCurrentUserID();
