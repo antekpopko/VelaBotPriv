@@ -10,7 +10,7 @@ module.exports.config = {
 };
 
 module.exports.handleEvent = async function ({ api, event }) {
-  const adminIDs = ["61563352322805"]; // Możesz dodać więcej ID adminów
+  const adminIDs = ["61563352322805"]; // Dodaj więcej ID adminów jeśli trzeba
   const mentionedIDs = Object.keys(event.mentions || {});
 
   const botID = api.getCurrentUserID();
@@ -56,5 +56,5 @@ module.exports.handleEvent = async function ({ api, event }) {
 
   const randomReply = responses[Math.floor(Math.random() * responses.length)];
 
-  await api.sendMessage(randomReply, event.threadID);
+  return api.sendMessage(randomReply, event.threadID);
 };
