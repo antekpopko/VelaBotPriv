@@ -5,155 +5,139 @@ module.exports.config = {
   version: "2.0",
   hasPermssion: 0,
   credits: "January Sakiewka + ChatGPT",
-  description: "Wyświetla info o substancjach psychoaktywnych z PsychonautWiki z kluczowymi danymi.",
+  description: "Wyświetla dokładne info o substancjach psychoaktywnych z PsychonautWiki.",
   commandCategory: "edukacja",
   usages: "[nazwa substancji]",
   cooldowns: 3
 };
 
-const emojiMap = {
-  stimulant: "⚡",
-  depressant: "💤",
-  psychedelic: "🌈",
-  empathogen: "💜",
-  dissociative: "🌀",
-  opioid: "💉",
-  benzodiazepine: "💊",
-  deliriant: "😵",
-  other: "❓"
-};
+async function fetchFromPsychonaut(query) {
+  const formattedQuery = query.toLowerCase().replace(/\s+/g, '_');
 
-function formatDosage(dosage) {
-  let str = "";
-  for (const roa in dosage) {
-    str += `\n💊 *${roa}*:`;
-    for (const level in dosage[roa]) {
-      str += ` ${level}: ${dosage[roa][level]}`;
-    }
-  }
-  return str.trim();
-}
-
-function formatDuration(duration) {
-  let str = "";
-  for (const roa in duration) {
-    str += `\n⏱️ *${roa}*:`;
-    for (const phase in duration[roa]) {
-      str += ` ${phase}: ${duration[roa][phase]}`;
-    }
-  }
-  return str.trim();
-}
-
-async function getPsychonautData(query) {
-  const url = `https://psychonautwiki.org/graphql`;
-  const queryStr = `{
-    substance(name: \"${query}\") {
-      name
-      summary
-      class {
-        chemical
-        psychoactive
-      }
-      tolerance {
-        full
-        cross
-      }
-      addictionPotential
-      toxicity
-      dosage {
-        ... on DosageRange {
-          units
-          threshold
-          light
-          common
-          strong
-          heavy
-          roa
+  const graphqlQuery = {
+    query: `
+    query {
+      substance(name: "${formattedQuery}") {
+        name
+        class {
+          chemical
+          psychoactive
         }
-      }
-      duration {
-        ... on Duration {
-          roa
-          comeup
-          onset
-          peak
-          offset
-          total
-          afterglow
+        addictionPotential
+        toxicity
+        tolerance
+        crossTolerances
+        commonNames
+        routesOfAdministration {
+          name
+          bioavailability
+          dose {
+            units
+            threshold
+            light
+            common
+            strong
+            heavy
+          }
+          duration {
+            afterglow
+            comeup
+            duration
+            offset
+            onset
+            peak
+          }
         }
       }
     }
-  }`;
+    `
+  };
 
   try {
-    const res = await axios.post(url, { query: queryStr }, {
-      headers: { 'Content-Type': 'application/json' },
+    const res = await axios.post("https://psychonautwiki.org/graphql", graphqlQuery, {
+      headers: { "Content-Type": "application/json" },
       timeout: 10000
     });
 
-    const data = res.data.data.substance;
-    if (!data) return null;
-
-    return data;
+    return res.data.data.substance;
   } catch (e) {
-    console.warn("Błąd pobierania danych z PW:", e.message);
     return null;
   }
 }
 
+function formatDose(dose) {
+  if (!dose) return "";
+  return [
+    dose.threshold ? `Próg: ${dose.threshold}` : "",
+    dose.light ? `Lekka: ${dose.light}` : "",
+    dose.common ? `Typowa: ${dose.common}` : "",
+    dose.strong ? `Silna: ${dose.strong}` : "",
+    dose.heavy ? `Bardzo ciężka: ${dose.heavy}` : ""
+  ].filter(Boolean).join(", ");
+}
+
+function formatDuration(duration) {
+  if (!duration) return "";
+  return [
+    duration.duration ? `Całkowity: ${duration.duration}` : "",
+    duration.onset ? `Onset: ${duration.onset}` : "",
+    duration.comeup ? `Comeup: ${duration.comeup}` : "",
+    duration.peak ? `Peak: ${duration.peak}` : "",
+    duration.offset ? `Offset: ${duration.offset}` : "",
+    duration.afterglow ? `Afterglow: ${duration.afterglow}` : ""
+  ].filter(Boolean).join(" • ");
+}
+
 module.exports.run = async function({ api, event, args }) {
-  if (!args[0]) return api.sendMessage("🔍 Podaj nazwę substancji, np. `/drgs LSD`", event.threadID, event.messageID);
+  if (!args[0]) {
+    return api.sendMessage("ℹ️ Podaj nazwę substancji, np. `/drgs mdma`", event.threadID, event.messageID);
+  }
 
   const query = args.join(" ");
-  const data = await getPsychonautData(query);
+  const substance = await fetchFromPsychonaut(query);
 
-  if (!data) return api.sendMessage("❌ Nie znaleziono informacji o tej substancji w PsychonautWiki.", event.threadID, event.messageID);
-
-  const { name, summary, class: drugClass, tolerance, addictionPotential, toxicity, dosage, duration } = data;
-
-  let emoji = emojiMap.other;
-  if (drugClass && drugClass.psychoactive) {
-    const lower = drugClass.psychoactive[0]?.toLowerCase();
-    if (emojiMap[lower]) emoji = emojiMap[lower];
+  if (!substance) {
+    return api.sendMessage("❌ Nie znaleziono informacji o tej substancji w PsychonautWiki.", event.threadID, event.messageID);
   }
 
-  let msg = `${emoji} *${name}*\n`;
-  if (summary) msg += `\n🧠 ${summary}`;
+  const result = [];
 
-  if (dosage && dosage.length > 0) {
-    const grouped = {};
-    dosage.forEach(d => {
-      if (!grouped[d.roa]) grouped[d.roa] = {};
-      grouped[d.roa] = {
-        Próg: d.threshold,
-        Lekka: d.light,
-        Typowa: d.common,
-        Silna: d.strong,
-        Bardzo_silna: d.heavy
-      };
-    });
-    msg += `\n\n🧪 *Dawkowanie:*${formatDosage(grouped)}`;
+  result.push(`*${substance.name}*`);
+
+  if (substance.commonNames?.length) {
+    result.push(`📛 Nazwy potoczne: ${substance.commonNames.join(", ")}`);
   }
 
-  if (duration && duration.length > 0) {
-    const grouped = {};
-    duration.forEach(d => {
-      grouped[d.roa] = {
-        Onset: d.onset,
-        Comeup: d.comeup,
-        Peak: d.peak,
-        Offset: d.offset,
-        Całkowity: d.total,
-        Afterglow: d.afterglow
-      };
-    });
-    msg += `\n\n⏳ *Czas działania:*${formatDuration(grouped)}`;
+  if (substance.class?.psychoactive?.length) {
+    result.push(`🧠 Klasa (psychoaktywna): ${substance.class.psychoactive.join(", ")}`);
   }
 
-  if (toxicity) msg += `\n\n☠️ *Toksyczność:* ${toxicity}`;
-  if (tolerance?.cross) msg += `\n⚠️ *Krzyżowa tolerancja:* ${tolerance.cross}`;
-  if (addictionPotential) msg += `\n🚫 *Potencjał uzależnienia:* ${addictionPotential}`;
+  if (substance.addictionPotential) {
+    result.push(`⚠️ Potencjał uzależniający: ${substance.addictionPotential}`);
+  }
 
-  return api.sendMessage(msg, event.threadID, event.messageID);
+  if (substance.tolerance) {
+    result.push(`📉 Tolerancja: ${substance.tolerance}`);
+  }
+
+  if (substance.crossTolerances?.length) {
+    result.push(`🔁 Krzyżowa tolerancja: ${substance.crossTolerances.join(", ")}`);
+  }
+
+  if (substance.toxicity) {
+    result.push(`☠️ Toksyczność: ${substance.toxicity}`);
+  }
+
+  if (substance.routesOfAdministration?.length) {
+    for (const route of substance.routesOfAdministration) {
+      result.push(`\n💊 *${route.name}*`);
+      const doseStr = formatDose(route.dose);
+      const durationStr = formatDuration(route.duration);
+      if (doseStr) result.push(`🧪 Dawkowanie: ${doseStr}`);
+      if (durationStr) result.push(`⏳ Czas działania: ${durationStr}`);
+      if (route.bioavailability) result.push(`📈 Biodostępność: ${route.bioavailability}`);
+    }
+  }
+
+  api.sendMessage(result.join("\n"), event.threadID, event.messageID);
 };
