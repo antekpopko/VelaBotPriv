@@ -1,6 +1,6 @@
 module.exports.config = {
   name: "votekick",
-  version: "1.0.1",
+  version: "1.0.2",
   hasPermission: 2,
   credits: "ChatGPT + user",
   description: "Rozpocznij głosowanie na wyrzucenie użytkownika",
@@ -28,6 +28,14 @@ module.exports.run = async function ({ api, event, args }) {
   const targetID = mentioned[0];
   const targetName = mentions[targetID].replace("@", "");
 
+  if (admins.includes(targetID)) {
+    return api.sendMessage("⚠️ Nie można głosować na administratora.", threadID, messageID);
+  }
+
+  if (voteCount < 4 || voteCount > threadInfo.participantIDs.length - 1) {
+    return api.sendMessage("❗ Liczba głosów musi być większa niż 3 i mniejsza niż liczba członków grupy.", threadID, messageID);
+  }
+
   const msg = await api.sendMessage(
     `🗳️ Głosowanie o wyrzucenie rozpoczęte!\n👤 Cel: ${targetName}\n✅ Potrzebne głosy: ${voteCount}\n⏱️ Czas: 2 minuty\n\nZareaguj na tę wiadomość, aby oddać głos.`,
     threadID
@@ -39,7 +47,7 @@ module.exports.run = async function ({ api, event, args }) {
     threadID,
     targetID,
     required: voteCount,
-    voters: new Set()
+    voters: []
   };
 
   global.client.handleReaction.push(voteData);
@@ -58,19 +66,20 @@ module.exports.handleReaction = async function ({ api, event, handleReaction }) 
   const { threadID, userID } = event;
   const data = handleReaction;
 
-  if (userID === data.targetID) return; // cel nie może na siebie głosować
-  if (data.voters.has(userID)) return; // tylko jeden głos
+  if (userID === data.targetID) return; // cel nie może głosować na siebie
+  if (data.voters.includes(userID)) return; // jeden głos na osobę
 
-  data.voters.add(userID);
+  data.voters.push(userID);
+  const currentVotes = data.voters.length;
 
-  const currentVotes = data.voters.size;
+  api.sendMessage(`🗳️ Oddano głos (${currentVotes}/${data.required})`, threadID);
 
   if (currentVotes >= data.required) {
     try {
       await api.removeUserFromGroup(data.targetID, threadID);
       api.sendMessage(`✅ Cel osiągnięty — użytkownik został usunięty z grupy.`, threadID);
     } catch (err) {
-      api.sendMessage("⚠️ Nie udało się wyrzucić użytkownika (być może jest adminem).", threadID);
+      api.sendMessage("⚠️ Nie udało się wyrzucić użytkownika (być może jest administratorem lub został już usunięty).", threadID);
     }
 
     // Usuń głosowanie
