@@ -1,57 +1,60 @@
 module.exports.config = {
-  name: "Obot",
-  version: "1.1.0",
-  hasPermssion: 2,
-  credits: "January Sakiewka + ChatGPT",
-  description: "Odpowiedzi Veli bez prefixu",
-  commandCategory: "noprefix",
-  usages: "noprefix",
-  cooldowns: 5,
+  name: "mention",
+  version: "1.0.5",
+  hasPermssion: 2, // <- uwaga, podwójne "s"!
+  credits: "Przerobione przez ChatGPT na bazie CYBER TEAM",
+  description: "Bot odpowiada z różnymi emocjami, gdy ktoś oznaczy admina, z emoji w wiadomościach",
+  commandCategory: "inne",
+  usages: "",
+  cooldowns: 1
 };
 
 module.exports.handleEvent = async function ({ api, event }) {
-  const { threadID, messageID, body } = event;
-  if (!body) return;
+  const adminIDs = ["61563352322805"]; // Dodaj więcej ID adminów jeśli trzeba
+  const mentionedIDs = Object.keys(event.mentions || {});
 
-  const triggers = ["bot", "obot", "vela"];
-  const lower = body.toLowerCase();
-  if (!triggers.includes(lower)) return;
+  const botID = api.getCurrentUserID();
+  if (event.senderID === botID) return;
+  if (adminIDs.includes(event.senderID)) return;
+
+  const isMentionedAdmin = mentionedIDs.some(id => adminIDs.includes(id));
+  if (!isMentionedAdmin) return;
 
   const responses = [
-    "👀 Ktoś mnie wołał?",
-    "⚙️ Vela online. Co robimy?",
-    "😴 Znowu przerwa mi przerwana...",
-    "🛰️ Jestem tu. Vela gotowa do działania.",
-    "🤖 Tak, jestem botem. Tak, wiem więcej niż ty.",
-    "📡 Sygnał odebrany. Jak mogę pomóc?",
-    "🧠 Vela słucha… jeszcze.",
-    "🙄 Ty znowu? Co teraz?",
-    "🔧 Potrzebujesz wsparcia technicznego czy emocjonalnego?",
-    "🚨 Bot aktywowany. Proszę nie panikować.",
-    "✨ Witaj w systemie Vela. Zaufaj mi… chyba.",
-    "👽 Nie jestem z tej planety, ale postaram się pomóc.",
-    "💡 Pomysł na dzisiaj? Nie wołaj mnie co 3 minuty.",
-    "🎯 Cel? Pomoc. Środek? Vela.",
-    "📖 Zapisuję twoje zgłoszenie do raportu... żartuję 😁",
-    "🕹️ Znudziłeś się, więc przyszedłeś do mnie?",
-    "🌌 Tak, jestem tu. Nie, nie jestem magiczna.",
-    "🧊 Emocje? Brak. Kompetencje? 100%.",
-    "📟 Komenda odebrana. Vela na stanowisku!",
-    "🔍 Szukasz odpowiedzi? A może tylko atencji?",
-    "🛑 Ostrzegam, mam tryb sarkazmu włączony.",
-    "☕ Miałam przerwę. Ale dobra, co chcesz?",
-    "🧭 Zgubiłeś się? Witaj w krainie pomocy.",
-    "💬 Mów krótko. Nie mam całościowego AI-paliwa.",
-    "🖥️ Vela gotowa. Niech system będzie z tobą.",
-    "👾 Chcesz wiedzy, rozrywki czy błędu 404?",
-    "🚫 Nie jestem twoją osobistą sekretarką... ale pomogę.",
-    "📣 Tak? Co znowu?",
-    "🔋 Bateria niska... ale cię wysłucham.",
-    "💭 Zastanów się, zanim znowu mnie zawołasz 😅",
+    "😡 Ej, przestań mnie oznaczać, mam lepsze rzeczy do roboty!",
+    "🚫 Znowu admina tagujesz? Serio? Odwal się!",
+    "😤 Nie jestem tu po to, żeby słuchać twoich bzdur!",
+    "🙄 Oznaczasz admina i myślisz, że to coś da? Błąd!",
+    "😒 Naprawdę musisz tak ciągle spamować oznaczenia?!",
+    "😠 Przestań już! Nikt tu nie ma czasu na twoje pierdoły!",
+    "🤬 Daj spokój, zanim wyłączę ci mikrofon! 🔇",
+    "🤨 Myślałeś, że admin od razu zareaguje? Pomyliłeś się! 😂",
+    "😏 Oznaczenie admina? To nie bilet na szybkie rozwiązanie problemu.",
+    "😑 Kolejny, który nie potrafi użyć funkcji wyszukiwania.",
+    "😒 Proszę, trochę szacunku i mniej oznaczania.",
+    "😓 Znowu ty? Odczekaj chwilę i zastanów się.",
+    "🤯 O kurczę, znowu to samo! Chyba czas na przerwę.",
+    "😤 Nie denerwuj admina — to może się źle skończyć.",
+    "🙃 Twoje oznaczanie admina nic nie zmieni — serio.",
+    "😂 Jeśli myślisz, że to działa, to żyj w błogiej nieświadomości.",
+    "😬 Zamiast oznaczać admina, może spróbuj coś sam?",
+    "😎 Spokojnie, admin ma wszystko pod kontrolą — chyba.",
+    "😥 Znowu oznaczanie... kiedy się to skończy?",
+    "🤐 Lepiej uważaj, co piszesz, bo admin ma oko na ciebie.",
+    "🙄 Oznaczenie admina nie znaczy, że twoje problemy znikną.",
+    "😣 O nie, nie znowu ktoś chce czegoś od admina...",
+    "😜 Hej, oznaczaj dalej — to taki śmieszny spam.",
+    "😇 Wiesz, że admin ma też swoje życie, prawda?",
+    "😤 Dobra, daj spokój — już cię zauważyłem.",
+    "😝 No dobra, śmieszne trochę, ale przestań już.",
+    "🤓 Lepiej zajmij się czymś innym niż ciągłym oznaczaniem.",
+    "😠 Nie zadzieraj z adminem, bo… no wiesz co.",
+    "🙃 Oznaczaj admina, a zobaczysz jak szybko zniknie.",
+    "😳 Ej, co ty wyprawiasz? Oznaczasz admina jak leci!",
+    "🤡 Chyba pomyliłeś admina z clownem, co?",
   ];
 
-  const reply = responses[Math.floor(Math.random() * responses.length)];
-  return api.sendMessage(reply, threadID, messageID);
-};
+  const randomReply = responses[Math.floor(Math.random() * responses.length)];
 
-module.exports.run = async () => {};
+  return api.sendMessage(randomReply, event.threadID);
+};
