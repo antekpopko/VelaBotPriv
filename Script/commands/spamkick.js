@@ -1,89 +1,46 @@
-const moment = require("moment-timezone");
-
 module.exports.config = {
   name: "spamkick",
-  version: "2.3.1",
+  version: "1.0.0",
   hasPermssion: 2,
-  credits: "CYBER BOT TEAM + January + ChatGPT",
-  description: "Automatycznie wyrzuca użytkownika, jeśli spamuje wiadomościami",
+  credits: "ChatGPT + January",
+  description: "Wyrzuca spamujących użytkowników (10+ wiadomości w 8 sek.)",
   commandCategory: "System",
-  usages: "spamkick",
-  cooldowns: 5
+  usages: "Automatycznie aktywna",
+  cooldowns: 0
 };
 
-module.exports.run = async function ({ api, event }) {
-  return api.sendMessage(
-    "🚨 Funkcja *spamkick* włączona!\nBot automatycznie wyrzuci użytkownika, jeśli wyśle zbyt wiele wiadomości w krótkim czasie.",
-    event.threadID,
-    event.messageID
-  );
-};
+// Niepotrzebny `run`, bo działa cały czas
 
-module.exports.handleEvent = async function ({ Users, api, event }) {
+module.exports.handleEvent = async function ({ api, event }) {
   const { senderID, threadID } = event;
   const botID = api.getCurrentUserID();
-
-  if (senderID === botID) return;
-
   const ADMINS = global.config.ADMINBOT || [];
-  if (ADMINS.includes(senderID)) return; // nie wyrzucaj adminów
+
+  if (senderID === botID || ADMINS.includes(senderID)) return;
 
   const SPAM_LIMIT = 10;
-  const TIME_LIMIT = 8000;
+  const TIME_WINDOW = 8000;
 
-  if (!global.client.autokick) global.client.autokick = {};
+  if (!global.client._spamData) global.client._spamData = {};
+  const spamData = global.client._spamData;
 
-  // 🧹 Jeśli użytkownik został już wyrzucony — usuń jego dane i zakończ
-  const threadInfo = global.data.threadInfo?.[threadID];
-  const isStillInGroup = threadInfo?.participantIDs?.includes(senderID);
-  if (threadInfo && !isStillInGroup) {
-    delete global.client.autokick[senderID];
-    return;
+  if (!spamData[senderID]) {
+    spamData[senderID] = [];
   }
 
-  if (!global.client.autokick[senderID]) {
-    global.client.autokick[senderID] = { timeStart: Date.now(), count: 1 };
-    return;
-  }
-
-  const userData = global.client.autokick[senderID];
   const now = Date.now();
+  spamData[senderID].push(now);
 
-  if (now - userData.timeStart > TIME_LIMIT) {
-    global.client.autokick[senderID] = { timeStart: now, count: 1 };
-  } else {
-    userData.count++;
+  // Usuń wiadomości starsze niż TIME_WINDOW
+  spamData[senderID] = spamData[senderID].filter(time => now - time < TIME_WINDOW);
 
-    if (userData.count >= SPAM_LIMIT) {
-      try {
-        const timeDate = moment.tz("Europe/Warsaw").format("DD/MM/YYYY HH:mm:ss");
-        const dataUser = await Users.getData(senderID) || {};
-        const name = dataUser.name || "Nieznany";
-
-        api.removeUserFromGroup(senderID, threadID, async (err) => {
-          if (err) {
-            console.error("❌ Błąd przy usuwaniu użytkownika:", err);
-            return;
-          }
-
-          api.sendMessage(
-            `⚠️ ${name} został wyrzucony za spamowanie (${SPAM_LIMIT}+ wiadomości w ${TIME_LIMIT / 1000} sek.)`,
-            threadID
-          );
-
-          for (const adminID of ADMINS) {
-            api.sendMessage(
-              `🚨 *WYRZUCENIE ZA SPAM* 🚨\n👤 Nazwa: ${name}\n🆔 ID: ${senderID}\n💬 Spam: ${SPAM_LIMIT}+ wiadomości\n🧵 Grupa: ${threadID}\n🕒 Czas: ${timeDate}`,
-              adminID
-            );
-          }
-
-          // ✅ Trwałe usunięcie danych po wyrzuceniu
-          delete global.client.autokick[senderID];
-        });
-      } catch (e) {
-        console.error("❗ Błąd w module spamkick:", e);
-      }
+  if (spamData[senderID].length >= SPAM_LIMIT) {
+    try {
+      await api.removeUserFromGroup(senderID, threadID);
+      api.sendMessage(`⚠️ Użytkownik ${senderID} został wyrzucony za spam (10+ wiadomości w 8 sek.)`, threadID);
+      delete spamData[senderID];
+    } catch (err) {
+      console.error("❌ Nie udało się wyrzucić użytkownika:", err);
     }
   }
 };
