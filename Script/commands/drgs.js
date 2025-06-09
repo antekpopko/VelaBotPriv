@@ -2,70 +2,38 @@ const axios = require("axios");
 
 module.exports.config = {
   name: "drgs",
-  version: "1.3.0",
+  version: "1.0.5",
   hasPermssion: 0,
-  credits: "ChatGPT + ulepszenia",
-  description: "Informacje o substancjach psychoaktywnych z PsychonautWiki, zoptymalizowane",
+  credits: "ChatGPT",
+  description: "Informacje o substancjach z PsychonautWiki",
   commandCategory: "edukacja",
   usages: "/drgs [nazwa substancji]",
   cooldowns: 3
 };
 
-const translateRoute = {
-  oral: "doustnie",
-  nasal: "donosowo",
-  intravenous: "dożylnie",
-  intramuscular: "domięśniowo",
-  rectal: "doodbytniczo",
-  sublingual: "podjęzykowo",
-  smoked: "palona",
-  vaporized: "waporyzowana"
-};
-
-const effectTranslations = {
-  "Euphoria": "Euforia",
-  "Empathy, affection and sociability enhancement": "Empatia i towarzyskość",
-  "Stimulation": "Pobudzenie",
-  "Visual hallucination": "Halucynacje wzrokowe",
-  "Auditory hallucination": "Halucynacje słuchowe",
-  "Time distortion": "Zniekształcenie czasu",
-  "Increased heart rate": "Przyspieszone tętno",
-  "Pupil dilation": "Rozszerzone źrenice",
-  "Dry mouth": "Suchość w ustach",
-  "Anxiety": "Lęk",
-  "Depression": "Obniżenie nastroju",
-  "Teeth grinding": "Zgrzytanie zębami",
-};
-
-function translateEffects(effects) {
-  return [...new Set(effects.map(e => effectTranslations[e] || e))]
-    .slice(0, 12); // pokaż maksymalnie 12 nazw
-}
-
 module.exports.run = async function({ api, event, args }) {
   const query = args.join(" ");
-  if (!query) return api.sendMessage("❌ Podaj nazwę substancji, np. `/drgs MDMA`", event.threadID, event.messageID);
+  if (!query) return api.sendMessage("❌ Podaj substancję, np. `/drgs mdma`", event.threadID, event.messageID);
 
   const payload = {
     query: `
-    {
-      substances(query: "${query}") {
-        name
-        routesOfAdministration { name }
-        dosage {
-          units
-          threshold light common strong heavy
+      {
+        substances(query: "${query}") {
+          name
+          summary
+          effects { name }
+          roas {
+            name
+            dose {
+              units threshold light { min max } common { min max } strong { min max } heavy
+            }
+            duration {
+              onset { min max units } peak { min max units } offset { min max units }
+              afterglow { min max units } total { min max units }
+            }
+          }
         }
-        duration {
-          onset { min max units }
-          peak { min max units }
-          offset { min max units }
-          afterglow { min max units }
-          total { min max units }
-        }
-        effects { name }
-      }
-    }`
+      }`
   };
 
   try {
@@ -73,42 +41,45 @@ module.exports.run = async function({ api, event, args }) {
       headers: { "Content-Type": "application/json" }
     });
 
-    const s = res.data.data.substances?.[0];
-    if (!s) {
-      return api.sendMessage("❌ Nie znaleziono tej substancji.", event.threadID, event.messageID);
+    const subs = res.data?.data?.substances;
+    if (!subs || subs.length === 0) {
+      return api.sendMessage("❌ Nie znaleziono substancji na PsychonautWiki.", event.threadID, event.messageID);
     }
 
-    const rp = s.routesOfAdministration?.map(r => translateRoute[r.name] || r.name).join(", ") || "—";
-    const d = s.dosage || {};
-    const dosageLines = [
-      `Próg: ${d.threshold || "—"} ${d.units || ""}`,
-      `Lekka: ${d.light || "—"} ${d.units || ""}`,
-      `Typowa: ${d.common || "—"} ${d.units || ""}`,
-      `Silna: ${d.strong || "—"} ${d.units || ""}`,
-      `Duża: ${d.heavy || "—"} ${d.units || ""}`
-    ].join("\n");
+    const s = subs[0];
+    let msg = `🧪 **${s.name}**\n\n${s.summary || "Brak opisu."}\n\n`;
 
-    const dur = s.duration;
-    const durationParts = [];
-    if (dur) {
-      if (dur.onset) durationParts.push(`Początek: ${dur.onset.min}-${dur.onset.max} ${dur.onset.units}`);
-      if (dur.peak) durationParts.push(`Szczyt: ${dur.peak.min}-${dur.peak.max} ${dur.peak.units}`);
-      if (dur.offset) durationParts.push(`Zakończenie: ${dur.offset.min}-${dur.offset.max} ${dur.offset.units}`);
-      if (dur.afterglow) durationParts.push(`Afterglow: ${dur.afterglow.min}-${dur.afterglow.max} ${dur.afterglow.units}`);
-      if (dur.total) durationParts.push(`Całkowity czas: ${dur.total.min}-${dur.total.max} ${dur.total.units}`);
+    for (const roa of s.roas) {
+      msg += `📍 *Droga podania:* ${roa.name}\n`;
+      const d = roa.dose;
+      const daw = [];
+      if (d.threshold) daw.push(`Próg: ${d.threshold} ${d.units}`);
+      if (d.light) daw.push(`Lekka: ${d.light.min}-${d.light.max} ${d.units}`);
+      if (d.common) daw.push(`Typowa: ${d.common.min}-${d.common.max} ${d.units}`);
+      if (d.strong) daw.push(`Silna: ${d.strong.min}-${d.strong.max} ${d.units}`);
+      if (d.heavy) daw.push(`Duża: ${d.heavy} ${d.units}`);
+      if (daw.length) msg += `🧮 *Dawkowanie:* ${daw.join(", ")}\n`;
+
+      const dur = roa.duration;
+      const parts = [];
+      if (dur.onset) parts.push(`Onset: ${dur.onset.min}-${dur.onset.max} ${dur.onset.units}`);
+      if (dur.peak) parts.push(`Peak: ${dur.peak.min}-${dur.peak.max} ${dur.peak.units}`);
+      if (dur.offset) parts.push(`Offset: ${dur.offset.min}-${dur.offset.max} ${dur.offset.units}`);
+      if (dur.afterglow) parts.push(`Afterglow: ${dur.afterglow.min}-${dur.afterglow.max} ${dur.afterglow.units}`);
+      if (dur.total) parts.push(`Całkowity czas: ${dur.total.min}-${dur.total.max} ${dur.total.units}`);
+      if (parts.length) msg += `⏱️ *Czas działania:* ${parts.join(" • ")}\n`;
+
+      msg += "\n";
     }
 
-    const effets = translateEffects(s.effects.map(e => e.name));
+    if (s.effects?.length) {
+      msg += `✨ *Efekty:* ${s.effects.map(e => e.name).join(", ")}`;
+    }
 
-    let msg = `🧪 **${s.name}**\n\n`;
-    msg += `📍 *Drogi podania:* ${rp}\n`;
-    msg += `🧮 *Dawkowanie (${d.units}):*\n${dosageLines}\n`;
-    msg += `⏱️ *Czas działania:*\n${durationParts.join("\n")}\n`;
-    msg += `\n✨ *Efekty (${effets.length}):*\n- ${effets.join("\n- ")}`;
+    return api.sendMessage(msg.trim(), event.threadID, event.messageID);
 
-    return api.sendMessage(msg, event.threadID, event.messageID);
   } catch (err) {
-    console.error("drgs ERR:", err.response?.data || err.message);
+    console.error("DRGS ERROR:", err.response?.data || err.message);
     return api.sendMessage("❌ Błąd pobierania danych. Spróbuj ponownie później.", event.threadID, event.messageID);
   }
 };
