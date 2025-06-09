@@ -1,7 +1,7 @@
 module.exports.config = {
   name: "mention",
   version: "1.0.5",
-  hasPermssion: 2, // dokładnie tak — z podwójnym "s"
+  hasPermssion: 2,
   credits: "Przerobione przez ChatGPT na bazie CYBER TEAM",
   description: "Bot odpowiada z różnymi emocjami, gdy ktoś oznaczy admina, z emoji w wiadomościach",
   commandCategory: "inne",
@@ -9,17 +9,20 @@ module.exports.config = {
   cooldowns: 1
 };
 
-module.exports.handleEvent = async function ({ api, event }) {
-  const adminIDs = ["61563352322805"]; // tutaj ID adminów
-  if (!event.mentions) return;
-  const mentionedIDs = Object.keys(event.mentions);
-  
+module.exports.handleEvent = function ({ api, event }) {
+  const adminID = "61563352322805"; // Twoje pełne ID admina
   const botID = api.getCurrentUserID();
+
+  // Ignoruj wiadomości od bota i od admina
   if (event.senderID === botID) return;
-  if (adminIDs.includes(event.senderID)) return;
-  
-  const isMentionedAdmin = mentionedIDs.some(id => adminIDs.includes(id));
-  if (!isMentionedAdmin) return;
+  if (event.senderID === adminID) return;
+
+  if (!event.mentions) return; // jeśli brak oznaczeń to nie rób nic
+
+  const mentionedIDs = Object.keys(event.mentions);
+
+  // Sprawdź, czy w oznaczeniach jest admin
+  if (!mentionedIDs.includes(adminID)) return;
 
   const responses = [
     "😡 Ej, przestań mnie oznaczać, mam lepsze rzeczy do roboty!",
@@ -56,5 +59,8 @@ module.exports.handleEvent = async function ({ api, event }) {
   ];
 
   const randomReply = responses[Math.floor(Math.random() * responses.length)];
+
   return api.sendMessage(randomReply, event.threadID);
 };
+
+module.exports.run = async () => {};
