@@ -1,85 +1,226 @@
 const axios = require("axios");
 
+const PW_API = "https://api.psychonautwiki.org/graphql";
+
+const effectsTranslate = {
+  "Auditory hallucination": "Halucynacje słuchowe",
+  "Auditory distortion": "Zniekształcenia dźwięku",
+  "Geometry": "Geometria (wizje geometryczne)",
+  "Pattern recognition enhancement": "Wzmocnienie rozpoznawania wzorców",
+  "Empathy, affection and sociability enhancement": "Wzrost empatii, uczucia i towarzyskości",
+  "Motivation enhancement": "Wzrost motywacji",
+  "Double vision": "Podwójne widzenie",
+  "Vibrating vision": "Wibrujące widzenie",
+  "Tracers": "Ślady po ruchu (tracery)",
+  "Symmetrical texture repetition": "Symetryczne powtarzanie tekstur",
+  "Dehydration": "Odwodnienie",
+  "Nausea": "Nudności",
+  "Headache": "Ból głowy",
+  "Vasoconstriction": "Zwężenie naczyń krwionośnych",
+  "Difficulty urinating": "Trudności w oddawaniu moczu",
+  "Temporary erectile dysfunction": "Tymczasowa dysfunkcja erekcji",
+  "Spontaneous bodily sensations": "Spontaniczne odczucia ciała",
+  "Physical euphoria": "Fizyczna euforia",
+  "Pupil dilation": "Rozszerzenie źrenic",
+  "Bronchodilation": "Rozszerzenie oskrzeli",
+  "Excessive yawning": "Nadmierne ziewanie",
+  "Thought acceleration": "Przyspieszenie myśli",
+  "Rejuvenation": "Odnowa",
+  "Ego inflation": "Nadmierne poczucie ego",
+  "Dream potentiation": "Wzmocnienie snów",
+  "External hallucination": "Halucynacje zewnętrzne",
+  "Internal hallucination": "Halucynacje wewnętrzne",
+  "Autonomous entity": "Autonomiczny byt",
+  "Settings, sceneries, and landscapes": "Ustawienia, scenerie i krajobrazy",
+  "Time distortion": "Zniekształcenie czasu",
+  "Mindfulness": "Uważność",
+  "Scenarios and plots": "Scenariusze i fabuły",
+  "Unity and interconnectedness": "Jedność i powiązania",
+  "Cognitive euphoria": "Kognitywna euforia",
+  "Depression": "Depresja",
+  "Anxiety": "Lęk",
+  "Irritability": "Drażliwość",
+  "Thought deceleration": "Spowolnienie myśli",
+  "Thought disorganization": "Dezorganizacja myśli",
+  "Disinhibition": "Rozhamowanie",
+  "Dream suppression": "Tłumienie snów",
+  "Bodily control enhancement": "Wzmocnienie kontroli ciała",
+  "Stimulation": "Stymulacja",
+  "Wakefulness": "Czuwanie",
+  "Temperature regulation suppression": "Zaburzenia regulacji temperatury",
+  "Appetite suppression": "Tłumienie apetytu",
+  "Pain relief": "Ulga w bólu",
+  "Color enhancement": "Wzmocnienie kolorów",
+  "Increased heart rate": "Przyspieszenie akcji serca",
+  "Increased blood pressure": "Podwyższone ciśnienie krwi",
+  "Muscle contractions": "Skurcze mięśni",
+  "Increased perspiration": "Wzmożone pocenie się",
+  "Peripheral information misinterpretation": "Błędna interpretacja informacji obwodowych",
+  "Anxiety suppression": "Tłumienie lęku",
+  "Increased music appreciation": "Zwiększona wrażliwość na muzykę",
+  "Existential self-realization": "Egzystencjalne uświadomienie siebie",
+  "Brain zaps": "Mózgowe „zapięcia”",
+  "Seizure": "Napad padaczkowy",
+  "Creativity enhancement": "Wzrost kreatywności",
+  "Confusion": "Zamieszanie",
+  "Abnormal heartbeat": "Nieprawidłowy rytm serca",
+  "Dry mouth": "Suchość w ustach",
+  "Teeth grinding": "Zgrzytanie zębami",
+  "Compulsive redosing": "Przymus ponownego zażycia",
+  "Cognitive fatigue": "Zmęczenie poznawcze",
+  "Derealization": "Derealizacja",
+  "Suicidal ideation": "Myśli samobójcze",
+  "Increased bodily temperature": "Podwyższona temperatura ciała",
+  "Neurotoxicity": "Neurotoksyczność",
+  "Amnesia": "Amnezja",
+  "Delirium": "Delirium",
+  "Tinnitus": "Szumy uszne",
+  "Emotion intensification": "Wzmocnienie emocji",
+  "Decreased libido": "Obniżone libido",
+  "Depression reduction": "Redukcja depresji",
+  "8A Geometry - Perceived exposure to semantic concept network": "8A Geometria - Postrzeganie sieci semantycznych",
+  "Perspective hallucination": "Halucynacje perspektywiczne",
+  "Focus intensification": "Wzmocnienie koncentracji",
+  "Immersion intensification": "Wzmocnienie zanurzenia",
+  "Auditory acuity enhancement": "Wzrost ostrości słuchu",
+  "Tactile intensification": "Wzmocnienie wrażeń dotykowych",
+  "Stamina intensification": "Wzrost wytrzymałości",
+  "Motivation depression": "Obniżenie motywacji",
+  "Orgasm depression": "Obniżenie orgazmu",
+  "Reinvigoration": "Ożywienie",
+  "Emotion suppression": "Tłumienie emocji",
+  "Dizziness": "Zawroty głowy",
+  "Delusion": "Urojenia",
+  "Memory suppression": "Tłumienie pamięci",
+  "Perception of bodily heaviness": "Poczucie ciężkości ciała",
+  "Sedation": "Sedacja",
+  "Motor control loss": "Utrata kontroli ruchowej",
+  "Respiratory depression": "Depresja oddechowa",
+  "Muscle relaxation": "Rozluźnienie mięśni",
+  "Confusion": "Dezorientacja",
+  "Visual acuity suppression": "Obniżenie ostrości widzenia",
+  "Sleepiness": "Senność",
+  "Seizure suppression": "Tłumienie drgawek",
+  "Euphoria": "Euforia",
+  "Appetite intensification": "Wzmożony apetyt",
+  "Analysis depression": "Obniżenie analizy",
+  "Language depression": "Obniżenie zdolności językowych"
+};
+
+function translateEffects(effects) {
+  if (!effects) return "Brak danych efektów.";
+  return effects
+    .map(e => effectsTranslate[e] || e)
+    .join(", ");
+}
+
+async function fetchFromPsychonautWiki(substance) {
+  const query = `
+    query SubstanceInfo($name: String!) {
+      substance(name: $name) {
+        name
+        description
+        aliases
+        administration {
+          method
+          dosage {
+            threshold
+            light
+            common
+            strong
+            heavy
+          }
+          duration {
+            onset
+            peak
+            offset
+            afterglow
+            total
+          }
+        }
+        effects {
+          common
+          uncommon
+          rare
+        }
+      }
+    }
+  `;
+
+  try {
+    const response = await axios.post(PW_API, {
+      query,
+      variables: { name: substance }
+    });
+
+    if (response.data.errors) {
+      throw new Error("PsychonautWiki API error");
+    }
+
+    return response.data.data.substance || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function fetchFromWikipedia(substance) {
+  try {
+    const { data } = await axios.get(
+      `https://pl.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(substance)}`
+    );
+    return data.extract || null;
+  } catch {
+    return null;
+  }
+}
+
+function formatDosage(dosage) {
+  if (!dosage) return "Brak danych o dawkowaniu.";
+  const parts = [];
+  if (dosage.threshold) parts.push(`Próg: ${dosage.threshold}`);
+  if (dosage.light) parts.push(`Lekka: ${dosage.light}`);
+  if (dosage.common) parts.push(`Typowa: ${dosage.common}`);
+  if (dosage.strong) parts.push(`Silna: ${dosage.strong}`);
+  if (dosage.heavy) parts.push(`Duża: ${dosage.heavy}`);
+  return parts.join(", ");
+}
+
+function formatDuration(duration) {
+  if (!duration) return "Brak danych o czasie działania.";
+  const parts = [];
+  if (duration.onset) parts.push(`Początek: ${duration.onset}`);
+  if (duration.peak) parts.push(`Szczyt: ${duration.peak}`);
+  if (duration.offset) parts.push(`Spadek: ${duration.offset}`);
+  if (duration.afterglow) parts.push(`Afterglow: ${duration.afterglow}`);
+  if (duration.total) parts.push(`Całkowity czas: ${duration.total}`);
+  return parts.join(" • ");
+}
+
+function formatAdministration(admin) {
+  if (!admin || admin.length === 0) return "Brak danych o drodze podania.";
+  return admin.map(a => {
+    return `📍 *Droga podania:* ${a.method}\n🧮 *Dawkowanie:* ${formatDosage(a.dosage)}\n⏱️ *Czas działania:* ${formatDuration(a.duration)}`;
+  }).join("\n\n");
+}
+
 module.exports.config = {
   name: "drgs",
-  version: "1.0.5",
+  version: "1.0",
+  credits: "Ullash + PsychonautWiki",
   hasPermssion: 0,
-  credits: "ChatGPT",
-  description: "Informacje o substancjach z PsychonautWiki",
-  commandCategory: "edukacja",
-  usages: "/drgs [nazwa substancji]",
-  cooldowns: 3
+  description: "Informacje o substancjach psychoaktywnych z PsychonautWiki z tłumaczeniem",
+  commandCategory: "info",
+  usages: "[nazwa substancji]",
+  cooldowns: 5
 };
 
 module.exports.run = async function({ api, event, args }) {
-  const query = args.join(" ");
-  if (!query) return api.sendMessage("❌ Podaj substancję, np. `/drgs mdma`", event.threadID, event.messageID);
-
-  const payload = {
-    query: `
-      {
-        substances(query: "${query}") {
-          name
-          summary
-          effects { name }
-          roas {
-            name
-            dose {
-              units threshold light { min max } common { min max } strong { min max } heavy
-            }
-            duration {
-              onset { min max units } peak { min max units } offset { min max units }
-              afterglow { min max units } total { min max units }
-            }
-          }
-        }
-      }`
-  };
-
-  try {
-    const res = await axios.post("https://api.psychonautwiki.org/", payload, {
-      headers: { "Content-Type": "application/json" }
-    });
-
-    const subs = res.data?.data?.substances;
-    if (!subs || subs.length === 0) {
-      return api.sendMessage("❌ Nie znaleziono substancji na PsychonautWiki.", event.threadID, event.messageID);
-    }
-
-    const s = subs[0];
-    let msg = `🧪 **${s.name}**\n\n${s.summary || "Brak opisu."}\n\n`;
-
-    for (const roa of s.roas) {
-      msg += `📍 *Droga podania:* ${roa.name}\n`;
-      const d = roa.dose;
-      const daw = [];
-      if (d.threshold) daw.push(`Próg: ${d.threshold} ${d.units}`);
-      if (d.light) daw.push(`Lekka: ${d.light.min}-${d.light.max} ${d.units}`);
-      if (d.common) daw.push(`Typowa: ${d.common.min}-${d.common.max} ${d.units}`);
-      if (d.strong) daw.push(`Silna: ${d.strong.min}-${d.strong.max} ${d.units}`);
-      if (d.heavy) daw.push(`Duża: ${d.heavy} ${d.units}`);
-      if (daw.length) msg += `🧮 *Dawkowanie:* ${daw.join(", ")}\n`;
-
-      const dur = roa.duration;
-      const parts = [];
-      if (dur.onset) parts.push(`Onset: ${dur.onset.min}-${dur.onset.max} ${dur.onset.units}`);
-      if (dur.peak) parts.push(`Peak: ${dur.peak.min}-${dur.peak.max} ${dur.peak.units}`);
-      if (dur.offset) parts.push(`Offset: ${dur.offset.min}-${dur.offset.max} ${dur.offset.units}`);
-      if (dur.afterglow) parts.push(`Afterglow: ${dur.afterglow.min}-${dur.afterglow.max} ${dur.afterglow.units}`);
-      if (dur.total) parts.push(`Całkowity czas: ${dur.total.min}-${dur.total.max} ${dur.total.units}`);
-      if (parts.length) msg += `⏱️ *Czas działania:* ${parts.join(" • ")}\n`;
-
-      msg += "\n";
-    }
-
-    if (s.effects?.length) {
-      msg += `✨ *Efekty:* ${s.effects.map(e => e.name).join(", ")}`;
-    }
-
-    return api.sendMessage(msg.trim(), event.threadID, event.messageID);
-
-  } catch (err) {
-    console.error("DRGS ERROR:", err.response?.data || err.message);
-    return api.sendMessage("❌ Błąd pobierania danych. Spróbuj ponownie później.", event.threadID, event.messageID);
+  if (!args.length) {
+    return api.sendMessage("❌ Podaj nazwę substancji, np. /drgs mdma", event.threadID, event.messageID);
   }
-};
+  const query = args.join(" ").toLowerCase();
+
+  let msg = "";
+  try {
+    // 1. Spróbuj z PsychonautWiki
+    const data =
