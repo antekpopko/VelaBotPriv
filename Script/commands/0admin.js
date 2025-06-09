@@ -6,7 +6,7 @@ module.exports.config = {
   version: "1.0.5",
   hasPermssion: 2,
   credits: "𝐂𝐘𝐁𝐄𝐑 ☢️_𖣘 -𝐁𝐎𝐓 ⚠️ 𝑻𝑬𝑨𝑴_ ☢️",
-  description: "Konfiguracja admina",
+  description: "Konfiguracja adminaa",
   commandCategory: "Admin",
   usages: "admin",
   cooldowns: 2,
