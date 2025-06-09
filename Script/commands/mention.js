@@ -1,7 +1,7 @@
 module.exports.config = {
   name: "mention",
   version: "1.0.5",
-  hasPermssion: 2, // <--- zmiana na hasPermssion, jeśli taki klucz jest w innych Twoich modułach
+  hasPermssion: 2, // dokładnie tak — z podwójnym "s"
   credits: "Przerobione przez ChatGPT na bazie CYBER TEAM",
   description: "Bot odpowiada z różnymi emocjami, gdy ktoś oznaczy admina, z emoji w wiadomościach",
   commandCategory: "inne",
@@ -10,13 +10,14 @@ module.exports.config = {
 };
 
 module.exports.handleEvent = async function ({ api, event }) {
-  const adminIDs = ["61563352322805"];
-  const mentionedIDs = Object.keys(event.mentions || {});
-
+  const adminIDs = ["61563352322805"]; // tutaj ID adminów
+  if (!event.mentions) return;
+  const mentionedIDs = Object.keys(event.mentions);
+  
   const botID = api.getCurrentUserID();
   if (event.senderID === botID) return;
   if (adminIDs.includes(event.senderID)) return;
-
+  
   const isMentionedAdmin = mentionedIDs.some(id => adminIDs.includes(id));
   if (!isMentionedAdmin) return;
 
@@ -55,6 +56,5 @@ module.exports.handleEvent = async function ({ api, event }) {
   ];
 
   const randomReply = responses[Math.floor(Math.random() * responses.length)];
-
   return api.sendMessage(randomReply, event.threadID);
 };
