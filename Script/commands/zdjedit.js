@@ -7,7 +7,7 @@ module.exports.config = {
   version: "1.0",
   credits: "Fahim API + ulepszenia: cwel",
   countDown: 5,
-  hasPermssion: 1,
+  hasPermssion: 0,
   commandCategory: "🎨 AI / Edycja zdjęć",
   description: "Edytuj zdjęcia za pomocą AI. Odpowiedz na zdjęcie i podaj prompt.",
   usages: "[prompt]",
