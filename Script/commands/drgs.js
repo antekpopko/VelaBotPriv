@@ -1,62 +1,59 @@
 const axios = require("axios");
 
+const WIKI_API = "https://en.wikipedia.org/api/rest_v1/page/summary/";
+
+const TRANSLATE_API = "https://libretranslate.de/translate";
+
 module.exports.config = {
   name: "drgs",
   version: "1.0",
-  credits: "Wikipedia (beta)",
+  credits: "Wikipedia + LibreTranslate",
   hasPermssion: 0,
-  description: "Szukaj danych o substancjach na Wikipedii (beta)",
+  description: "Informacje o substancjach z Wikipedii (wersja beta)",
   commandCategory: "informacje",
 };
 
-async function searchWikipedia(query) {
+async function translateText(text, targetLang = "pl") {
   try {
-    // Szukaj artykułu w Wikipedia API
-    const searchRes = await axios.get("https://en.wikipedia.org/w/api.php", {
-      params: {
-        action: "query",
-        list: "search",
-        srsearch: query,
-        format: "json",
-        srlimit: 1,
+    const res = await axios.post(
+      TRANSLATE_API,
+      {
+        q: text,
+        source: "en",
+        target: targetLang,
+        format: "text",
       },
-    });
-
-    if (!searchRes.data.query.search.length) return null;
-
-    const title = searchRes.data.query.search[0].title;
-
-    // Pobierz podsumowanie artykułu
-    const summaryRes = await axios.get(
-      "https://en.wikipedia.org/api/rest_v1/page/summary/" + encodeURIComponent(title)
+      { headers: { "Content-Type": "application/json" } }
     );
-
-    return {
-      title: summaryRes.data.title,
-      extract: summaryRes.data.extract,
-      url: summaryRes.data.content_urls?.desktop.page || null,
-    };
+    if (res.data && res.data.translatedText) return res.data.translatedText;
+    return text; // fallback
   } catch {
-    return null;
+    return text; // fallback jeśli coś nie działa
   }
 }
 
 module.exports.run = async function({ args, api, event }) {
   if (!args.length)
-    return api.sendMessage("Podaj nazwę substancji!", event.threadID, event.messageID);
+    return api.sendMessage("Podaj nazwę substancji do wyszukania.", event.threadID, event.messageID);
 
   const query = args.join(" ");
 
-  const data = await searchWikipedia(query);
+  try {
+    const wikiRes = await axios.get(WIKI_API + encodeURIComponent(query));
+    if (wikiRes.data.type === "disambiguation" || wikiRes.data.type === "standard") {
+      const title = wikiRes.data.title;
+      const extract = wikiRes.data.extract;
+      const pageUrl = wikiRes.data.content_urls.desktop.page;
 
-  if (!data)
-    return api.sendMessage(
-      "Nie znaleziono informacji o tej substancji na Wikipedii.",
-      event.threadID,
-      event.messageID
-    );
+      const extractPL = await translateText(extract, "pl");
 
-  let msg = `🧪 *${data.title}*\n\n${data.extract}\n\n🔗 Więcej: ${data.url}\n\n⚠️ Uwaga: to jest wersja beta komendy i chwilowo działa tylko tak.`;
+      let msg = `🧪 *${title}*\n\n${extractPL}\n\n🔗 Więcej: ${pageUrl}\n\n⚠️ Uwaga: to jest wersja beta komendy i chwilowo działa tylko tak.`;
 
-  return api.sendMessage(msg, event.threadID, event.messageID);
+      return api.sendMessage(msg, event.threadID, event.messageID);
+    } else {
+      return api.sendMessage("Nie znaleziono informacji o tej substancji na Wikipedii.", event.threadID, event.messageID);
+    }
+  } catch (e) {
+    return api.sendMessage("Błąd podczas wyszukiwania informacji.", event.threadID, event.messageID);
+  }
 };
