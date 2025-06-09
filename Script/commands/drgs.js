@@ -210,17 +210,4 @@ module.exports.config = {
   hasPermssion: 0,
   description: "Informacje o substancjach psychoaktywnych z PsychonautWiki z tłumaczeniem",
   commandCategory: "info",
-  usages: "[nazwa substancji]",
-  cooldowns: 5
-};
-
-module.exports.run = async function({ api, event, args }) {
-  if (!args.length) {
-    return api.sendMessage("❌ Podaj nazwę substancji, np. /drgs mdma", event.threadID, event.messageID);
-  }
-  const query = args.join(" ").toLowerCase();
-
-  let msg = "";
-  try {
-    // 1. Spróbuj z PsychonautWiki
-    const data =
+  usages: "[nazwa
