@@ -108,7 +108,7 @@ const effectsTranslate = {
 };
 
 function translateEffects(effects) {
-  if (!effects) return "Brak danych efektów.";
+  if (!effects || effects.length === 0) return "Brak danych efektów.";
   return effects
     .map(e => effectsTranslate[e] || e)
     .join(", ");
@@ -208,6 +208,45 @@ module.exports.config = {
   version: "1.0",
   credits: "Ullash + PsychonautWiki",
   hasPermssion: 0,
-  description: "Informacje o substancjach psychoaktywnych z PsychonautWiki z tłumaczeniem",
-  commandCategory: "info",
-  usages: "[nazwa
+  description: "Info o substancjach psychoaktywnych z PsychonautWiki + Wikipedia",
+  commandCategory: "informacje",
+};
+
+module.exports.run = async function ({ args, event, api }) {
+  if (!args[0]) return api.sendMessage("Podaj nazwę substancji!", event.threadID, event.messageID);
+
+  const query = args.join(" ").toLowerCase();
+
+  const substanceData = await fetchFromPsychonautWiki(query);
+
+  if (substanceData) {
+    let msg = `🧪 Informacje o substancji: *${substanceData.name}*\n`;
+
+    if (substanceData.aliases && substanceData.aliases.length)
+      msg += `\n📝 Nazwy potoczne: ${substanceData.aliases.join(", ")}\n`;
+
+    if (substanceData.description)
+      msg += `\n📖 Opis:\n${substanceData.description}\n`;
+
+    // Drogi podania + dawkowanie + czas działania
+    msg += `\n${formatAdministration(substanceData.administration)}\n`;
+
+    // Efekty
+    const allEffects = [
+      ...(substanceData.effects.common || []),
+      ...(substanceData.effects.uncommon || []),
+      ...(substanceData.effects.rare || []),
+    ];
+    msg += `\n✨ Efekty:\n${translateEffects(allEffects)}\n`;
+
+    return api.sendMessage(msg, event.threadID, event.messageID);
+  } else {
+    // Brak w PW, spróbuj Wikipedia PL
+    const wikiSummary = await fetchFromWikipedia(query);
+    if (wikiSummary) {
+      return api.sendMessage(`📚 Nie znaleziono w PsychonautWiki. Oto opis z Wikipedii:\n\n${wikiSummary}`, event.threadID, event.messageID);
+    } else {
+      return api.sendMessage("Nie znaleziono informacji o tej substancji.", event.threadID, event.messageID);
+    }
+  }
+};
