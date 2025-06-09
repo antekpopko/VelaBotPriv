@@ -1,26 +1,21 @@
 const axios = require("axios");
 const cheerio = require("cheerio");
 
-module.exports.config = {
-  name: "drgs",
-  version: "1.0",
-  credits: "Erowid",
-  hasPermssion: 0,
-  description: "Informacje o substancjach psychoaktywnych z Erowid",
-  commandCategory: "informacje",
-};
+function formatErowidUrlName(name) {
+  const parts = name.toLowerCase().split(/\s+/);
+  return parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join("");
+}
 
 async function getErowidInfo(substance) {
   try {
-    // Formatowanie nazwy na URL Erowid
-    const urlName = substance.toLowerCase().replace(/\s+/g, '');
+    const urlName = formatErowidUrlName(substance);
     const url = `https://erowid.org/chemicals/${urlName}/${urlName}.shtml`;
 
     const { data } = await axios.get(url);
     const $ = cheerio.load(data);
 
-    // Opis pobieramy z pierwszego większego paragrafu w #main-content
     let description = "";
+    // Szukamy pierwszego dłuższego paragrafu w main-content
     $("#main-content p").each((i, el) => {
       const text = $(el).text().trim();
       if (text.length > 50 && !description) {
@@ -28,8 +23,8 @@ async function getErowidInfo(substance) {
       }
     });
 
-    // Dawkowanie - próbujemy znaleźć pod nagłówkiem "Dosage"
     let dosage = "";
+    // Szukamy sekcji z nagłówkiem "Dosage"
     $("h3").each((i, el) => {
       const header = $(el).text().toLowerCase();
       if (header.includes("dosage")) {
@@ -37,7 +32,6 @@ async function getErowidInfo(substance) {
       }
     });
 
-    // Jeśli nic nie znaleziono, ustaw info o braku danych
     if (!description) description = "Brak opisu.";
     if (!dosage) dosage = "Brak informacji o dawkowaniu.";
 
@@ -47,23 +41,29 @@ async function getErowidInfo(substance) {
   }
 }
 
+module.exports.config = {
+  name: "drgs",
+  version: "1.0",
+  credits: "Erowid.org",
+  hasPermssion: 0,
+  description: "Informacje o substancjach psychoaktywnych z Erowid",
+  commandCategory: "informacje",
+};
+
 module.exports.run = async function({ args, api, event }) {
-  if (!args.length) {
+  if (!args.length) 
     return api.sendMessage("Podaj nazwę substancji!", event.threadID, event.messageID);
-  }
 
-  const substance = args.join(" ");
+  const query = args.join(" ");
 
-  const data = await getErowidInfo(substance);
-
-  if (!data) {
+  const data = await getErowidInfo(query);
+  if (!data) 
     return api.sendMessage("Nie znaleziono informacji o tej substancji na Erowid.", event.threadID, event.messageID);
-  }
 
-  const msg = `🧪 Informacje o *${substance}* z Erowid:\n\n` +
-              `📖 Opis:\n${data.description}\n\n` +
-              `💊 Dawkowanie:\n${data.dosage}\n\n` +
-              `🌐 Więcej informacji: ${data.url}`;
+  let msg = `🧪 Informacje o *${query}* z Erowid:\n\n`;
+  msg += `📖 Opis:\n${data.description}\n\n`;
+  msg += `🧮 Dawkowanie:\n${data.dosage}\n\n`;
+  msg += `🔗 Więcej: ${data.url}`;
 
   return api.sendMessage(msg, event.threadID, event.messageID);
 };
