@@ -1,69 +1,62 @@
 const axios = require("axios");
-const cheerio = require("cheerio");
-
-function formatErowidUrlName(name) {
-  const parts = name.toLowerCase().split(/\s+/);
-  return parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join("");
-}
-
-async function getErowidInfo(substance) {
-  try {
-    const urlName = formatErowidUrlName(substance);
-    const url = `https://erowid.org/chemicals/${urlName}/${urlName}.shtml`;
-
-    const { data } = await axios.get(url);
-    const $ = cheerio.load(data);
-
-    let description = "";
-    // Szukamy pierwszego dłuższego paragrafu w main-content
-    $("#main-content p").each((i, el) => {
-      const text = $(el).text().trim();
-      if (text.length > 50 && !description) {
-        description = text;
-      }
-    });
-
-    let dosage = "";
-    // Szukamy sekcji z nagłówkiem "Dosage"
-    $("h3").each((i, el) => {
-      const header = $(el).text().toLowerCase();
-      if (header.includes("dosage")) {
-        dosage = $(el).next("p").text().trim();
-      }
-    });
-
-    if (!description) description = "Brak opisu.";
-    if (!dosage) dosage = "Brak informacji o dawkowaniu.";
-
-    return { description, dosage, url };
-  } catch (error) {
-    return null;
-  }
-}
 
 module.exports.config = {
   name: "drgs",
   version: "1.0",
-  credits: "Erowid.org",
+  credits: "Wikipedia (beta)",
   hasPermssion: 0,
-  description: "Informacje o substancjach psychoaktywnych z Erowid",
+  description: "Szukaj danych o substancjach na Wikipedii (beta)",
   commandCategory: "informacje",
 };
 
+async function searchWikipedia(query) {
+  try {
+    // Szukaj artykułu w Wikipedia API
+    const searchRes = await axios.get("https://en.wikipedia.org/w/api.php", {
+      params: {
+        action: "query",
+        list: "search",
+        srsearch: query,
+        format: "json",
+        srlimit: 1,
+      },
+    });
+
+    if (!searchRes.data.query.search.length) return null;
+
+    const title = searchRes.data.query.search[0].title;
+
+    // Pobierz podsumowanie artykułu
+    const summaryRes = await axios.get(
+      "https://en.wikipedia.org/api/rest_v1/page/summary/" + encodeURIComponent(title)
+    );
+
+    return {
+      title: summaryRes.data.title,
+      extract: summaryRes.data.extract,
+      url: summaryRes.data.content_urls?.desktop.page || null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 module.exports.run = async function({ args, api, event }) {
-  if (!args.length) 
+  if (!args.length)
     return api.sendMessage("Podaj nazwę substancji!", event.threadID, event.messageID);
 
   const query = args.join(" ");
 
-  const data = await getErowidInfo(query);
-  if (!data) 
-    return api.sendMessage("Nie znaleziono informacji o tej substancji na Erowid.", event.threadID, event.messageID);
+  const data = await searchWikipedia(query);
 
-  let msg = `🧪 Informacje o *${query}* z Erowid:\n\n`;
-  msg += `📖 Opis:\n${data.description}\n\n`;
-  msg += `🧮 Dawkowanie:\n${data.dosage}\n\n`;
-  msg += `🔗 Więcej: ${data.url}`;
+  if (!data)
+    return api.sendMessage(
+      "Nie znaleziono informacji o tej substancji na Wikipedii.",
+      event.threadID,
+      event.messageID
+    );
+
+  let msg = `🧪 *${data.title}*\n\n${data.extract}\n\n🔗 Więcej: ${data.url}\n\n⚠️ Uwaga: to jest wersja beta komendy i chwilowo działa tylko tak.`;
 
   return api.sendMessage(msg, event.threadID, event.messageID);
 };
