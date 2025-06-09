@@ -6,50 +6,43 @@ module.exports.config = {
   description: "Wyświetla listę komend",
   commandCategory: "system",
   usages: "",
-  cooldowns: 5,
-  envConfig: {
-    autoUnsend: true,
-    delayUnsend: 20
-  }
+  cooldowns: 5
 };
 
 module.exports.run = async function({ api, event }) {
-  const { threadID, messageID } = event;
-  const { commands } = global.client;
+  const { threadID, messageID, senderID } = event;
   const prefix = global.config.PREFIX || "/";
 
+  // Pobierz wszystkie komendy
+  const allCommands = [...global.client.commands.values()];
+
+  // Podziel na user/admin wg hasPermssion
+  const userCommands = allCommands
+    .filter(cmd => cmd.config.hasPermssion === 0)
+    .map(cmd => `• ${prefix}${cmd.config.name}`)
+    .sort();
+
+  const adminCommands = allCommands
+    .filter(cmd => cmd.config.hasPermssion > 0)
+    .map(cmd => `• ${prefix}${cmd.config.name}`)
+    .sort();
+
+  // Sprawdź, czy user jest adminem (czyli ma jakieś admin perm w event)
   const isAdmin = event.hasPermssion && event.hasPermssion > 0;
 
-  const userCommands = [];
-  const adminCommands = [];
-
-  for (const [name, cmd] of commands) {
-    if (typeof cmd.config?.hasPermssion === "number") {
-      if (cmd.config.hasPermssion === 0) userCommands.push(name);
-      else if (cmd.config.hasPermssion > 0) adminCommands.push(name);
-    }
-  }
-
-  userCommands.sort();
-  adminCommands.sort();
-
-  let msg = "📜 *Lista dostępnych komend*\n";
+  // Budujemy wiadomość
+  let msg = "📜 Lista dostępnych komend\n";
   msg += "──────────────────────────────\n\n";
-
-  msg += `👥 *Komendy użytkownika* (${userCommands.length}):\n`;
-  userCommands.forEach(cmd => {
-    msg += `• \`${prefix}${cmd}\`\n`;
-  });
+  msg += `👥 Komendy użytkownika (${userCommands.length}):\n\n`;
+  msg += userCommands.join("\n") + "\n";
 
   if (isAdmin && adminCommands.length > 0) {
-    msg += `\n🔒 *Komendy administratora* (${adminCommands.length}):\n`;
-    adminCommands.forEach(cmd => {
-      msg += `• \`${prefix}${cmd}\`\n`;
-    });
+    msg += "\n🔒 Komendy administratora (" + adminCommands.length + "):\n\n";
+    msg += adminCommands.join("\n") + "\n";
   }
 
   msg += "\n──────────────────────────────\n";
-  msg += "_Użyj komendy z prefixem przed nazwą_\n";
+  msg += "ℹ️ Użyj prefixu przed nazwą komendy";
 
   return api.sendMessage(msg, threadID, messageID);
 };
